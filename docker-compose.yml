@@ -32,4 +32,4 @@ services:
       MONDODB_LOG_DIR: /dev/null
     volumes:
       - ./db:/data/db
-    command: mongod
+    command: mongod --quiet --logpath ./data/db/logs
