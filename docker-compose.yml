@@ -1,0 +1,35 @@
+version: '3'
+services:
+
+  fastapi:
+    build: ./fastapi
+    restart: always
+    depends_on:
+      - mongo
+    volumes:
+      - ./fastapi:/fastapi
+    ports:
+      - "8000:8000"
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  mongo-express:
+    image: mongo-express
+    restart: always
+    depends_on:
+      - mongo
+    environment:
+      - ME_CONFIG_BASICAUTH_USERNAME=admin
+      - ME_CONFIG_BASICAUTH_PASSWORD=1234qwer
+    ports:
+      - "8081:8081"
+
+  mongo:
+    image: mongo:5.0.12
+    restart: always
+    environment:
+      MONGO_INITDB_DATABASE: v2ex
+      MONGODB_DATA_DIR: /data/db
+      MONDODB_LOG_DIR: /dev/null
+    volumes:
+      - ./db:/data/db
+    command: mongod
