@@ -89,7 +89,7 @@ async def topic_recommend() -> List[Topic]:
         'date': {
             '$gte': datetime.datetime.now() - datetime.timedelta(days=3)
         }
-    }).sort("score", -1).limit(30)
+    }).sort("score", -1).limit(30).to_list(30)
     topics = random.sample(list(topics), 10)
     return list(map(dict, topics))
 
@@ -101,7 +101,7 @@ async def topic_recommend() -> List[Reply]:
         'date': {
             '$gte': datetime.datetime.now() - datetime.timedelta(days=3)
         }
-    }).sort("thank", -1).limit(30)
+    }).sort("thank", -1).limit(30).to_list(30)
     replys = random.sample(list(replys), 10)
     return list(map(dict, replys))
 
