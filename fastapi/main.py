@@ -1,5 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 import motor.motor_asyncio
 from bson import ObjectId
 from model import *
@@ -32,54 +35,74 @@ app.add_middleware(
     allow_credentials=True
 )
 
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
+
+def localtime(date):
+    """Custom filter"""
+    return date.astimezone(datetime.timezone(datetime.timedelta(hours=8)))
+
+templates.env.filters["localtime"] = localtime
+
 client = motor.motor_asyncio.AsyncIOMotorClient('mongodb://mongo')
 db = client.V2EX
 
 
-@app.get("/")
-async def home():
+@app.get("/", response_class=HTMLResponse)
+async def home(request: Request):
     '''各类主题列表及爬虫信息'''
     # await db.reply.delete_many({'content': {'$regex': r'div class="show-reply"'}})
 
-    topic_recent_90days_total = await db.topic.count_documents({
-        'spiderTime': {'$lte': datetime.datetime.now() - datetime.timedelta(days=90)}
-    })
+    topics = []
+    # 最近 7 天每天前三的主题且得分高于 8000 分
+    for i in range(1, 8):
+        day = datetime.datetime.now() - datetime.timedelta(days=i)
+        topics += (await db.topic.find({
+            "date": {
+                "$gte": day.replace(hour=0, minute=0, second=0),
+                "$lt": day.replace(hour=23, minute=59, second=59)
+            }
+        }).sort("score", -1).limit(3).to_list(3))
+    
+    replys = []
+    # 最近 7 天每天前三的回复
+    for i in range(1, 8):
+        day = datetime.datetime.now() - datetime.timedelta(days=i)
+        replys += (await db.reply.find({
+            "date": {
+                "$gte": day.replace(hour=0, minute=0, second=0),
+                "$lt": day.replace(hour=23, minute=59, second=59)
+            }
+        }).sort("thank", -1).limit(3).to_list(3))
 
-    latest_topic = await db.topic.find_one(sort=[('id', -1)])
-    latest_topic_id = latest_topic['id']
-
-    info = await db.info.find_one()
-    cursor = info['cursor']
-
-    # 任务总数
-    task_total = await db.task.count_documents({})
-    # 未分配任务总数
-    task_not_distribute_total = await db.task.count_documents({
-        'distribute_time': None
-    })
-    # 未完成任务总数
-    task_not_complete_total = await db.task.count_documents({
-        'complete_time': None
-    })
-    # 分配后超时 1 分钟未完成任务总数
-    task_distribute_but_not_complete_total = await db.task.count_documents({
-        'distribute_time': {'$lte': datetime.datetime.now() - datetime.timedelta(seconds=60)},
-        'complete_time': None
-    })
-    # N 待处理错误
-    error_total = await db.error.count_documents({})
-
-    return {
-        'topic_recent_90days_total': topic_recent_90days_total,
-        'latest_topic_id': latest_topic_id,
-        'cursor': cursor,
-        'doc': '/redoc',
-        'task_total': task_total,
-        'task_not_distribute_total': task_not_distribute_total,
-        'task_not_complete_total': task_not_complete_total,
-        'task_distribute_but_not_complete_total': task_distribute_but_not_complete_total,
-        'error_total': error_total,
+    data = {
+        'request': request,
+        'topics': topics,
+        'replys': replys,
+        # 主题总数
+        'topic_total': await db.topic.count_documents({}),
+        # 超 90 天未爬取主题数
+        'topic_recent_90days_total': await db.topic.count_documents({
+            'spiderTime': {'$lte': datetime.datetime.now() - datetime.timedelta(days=90)}
+        }),
+        'cursor': (await db.info.find_one())['cursor'],
+        'latest_topic_id': (await db.topic.find_one(sort=[('id', -1)]))['id'],
+        # 任务总数
+        'task_total': await db.task.count_documents({}),
+        # 未分配任务总数
+        'task_not_distribute_total': await db.task.count_documents({'distribute_time': None}),
+        # 未完成任务总数
+        'task_not_complete_total': await db.task.count_documents({'complete_time': None}),
+        # 分配后未完成任务总数
+        'task_distribute_but_not_complete_total': await db.task.count_documents({
+            'distribute_time': {'$lte': datetime.datetime.now() - datetime.timedelta(seconds=60)},
+            'complete_time': None
+        }),
+        # 待处理错误数
+        'error_total': await db.error.count_documents({}),
     }
+
+    return templates.TemplateResponse("index.html", data)
 
 
 @app.get("/api/topic/recommend", response_model=List[Topic])
@@ -173,6 +196,10 @@ async def complete_task(sign):
 async def topic_task() -> Task:
     '''获取爬取任务'''
     # return Task(sign='',id=0,page=0,url='')
+    await db.task.delete_many({
+        'complete_time': {'$ne': None},
+        'distribute_time': {'$ne': None}}
+    )
     task = await get_task()
     if task:
         return task
