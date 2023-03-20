@@ -138,7 +138,7 @@ async def topic_info(task: str, topic: Topic) -> SuccessResponse:
     # TEMP 临时排除浏览状态提交的回复（其他插件影响内容）
     for i in replys:
         if '<div class="show-reply">' not in i['content']:
-            await db.reply.update_one({'id': i['id']}, {"$set": i}, upsert=True)
+            await db.reply.find_one_and_update({'id': i['id']}, {"$set": i}, upsert=True)
     if (task != 'undefined'):
         await complete_task(task)
     return SuccessResponse()
