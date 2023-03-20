@@ -32,6 +32,7 @@ a {
 
 .wrapper {
     width: 580px;
+    max-width: 96vw;
     border-radius: 3px;
     background: #f9f9f9;
     box-shadow: 3px 3px 10px #ccc;

@@ -3,8 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport"
-        content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no">
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no">
     <meta name="referrer" content="always">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="description" content="vDaily - V2EX 精选">
@@ -32,7 +32,7 @@
         <a class='topic' href="https://v2ex.com/t/{{ i['topicId'] }}?page={{ i['topicPage'] }}#r_{{ i['id'] }}" target="_blank">
             <img class='avatar' src="{{ i['avatar'] }}">
             <div>
-                <p class="name">{{ i['content'] }}</p>
+                <p class="name">{{ i['content']|remove_tag_a|safe }}</p>
                 <p class="info">{{ i['author']}} · {{ i['date']|localtime }} · {{ i['thank'] }}</p>
             </div>
         </a>
@@ -41,7 +41,7 @@
     <div class="status">
         文档：<a href="https://vdaily.huguotao.com/redoc">API 开放接口</a> ·
         状态：<a href="https://vdaily.huguotao.com/nginx_status">Nginx 状态</a> ·
-        统计：<a href="https://vdaily.huguotao.com/report/">请求统计</a><br>
+        统计：<a href="https://vdaily.huguotao.com/report.html">请求统计</a><br>
         主题总数：{{ topic_total }} ·
         超 90 天未更新：{{ topic_recent_90days_total }} ·
         最新主题 ID：{{ latest_topic_id }}<br>

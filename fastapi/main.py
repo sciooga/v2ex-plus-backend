@@ -39,10 +39,13 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 def localtime(date):
-    """Custom filter"""
     return date.astimezone(datetime.timezone(datetime.timedelta(hours=8)))
 
+def remove_tag_a(html):
+    return re.sub('<a .*?>|</a>', '', html)
+
 templates.env.filters["localtime"] = localtime
+templates.env.filters["remove_tag_a"] = remove_tag_a
 
 client = motor.motor_asyncio.AsyncIOMotorClient('mongodb://mongo')
 db = client.V2EX
@@ -126,6 +129,8 @@ async def topic_recommend() -> List[Reply]:
         }
     }).sort("thank", -1).limit(30).to_list(30)
     replys = random.sample(list(replys), 10)
+    for i in replys:
+        i['content'] = remove_tag_a(i['content'])
     return list(map(dict, replys))
 
 
