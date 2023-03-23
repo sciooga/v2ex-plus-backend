@@ -131,13 +131,43 @@ async def delete_task():
     )
 
 async def delete_error():
-    '''删除任务已经不存在的错误'''
-    pass
-    # await db.task.update_many({}, {
-    #     '$set': {
-    #         'distribute_time': None
-    #     }
-    # })
+    '''清空错误'''
+
+    print('清理错误')
+    # 404 错误删除任务创建一个 0 分主题
+    errors = await db.error.find({'error': {'$regex': r'错误码404'}}).to_list(1000)
+    for i in errors:
+        await db.error.delete_one({'_id': i['_id']})
+        result = re.search(r'/t/(\d+)', i['url'])
+        if not result:
+            continue
+            
+        topic_id = int(result.group(1))
+        page = re.search(r'=(\d+)', i['url'])
+        page = int(page.group(1)) if page else 1
+
+        await db.task.delete_many({'id': topic_id})
+        await db.topic.update_one(
+            {'id': topic_id},
+            {"$set": Topic(
+                spiderTime = datetime.datetime(2999,1,1),
+                id = topic_id,
+                name = '',
+                node = '',
+                author = '',
+                avatar = '',
+                date = datetime.datetime(2999,1,1),
+                reply = 0,
+                vote = 0,
+                click = 0,
+                collect = 0,
+                thank = 0,
+                score = 0,
+                content = '',
+                append = [],
+                replys = [],
+            ).dict()
+        }, upsert=True)
 
 
 # 在应用程序启动之前运行的函数
@@ -147,6 +177,7 @@ async def startup_event():
     asyncio.create_task(bg_task(10, generate_task))
     asyncio.create_task(bg_task(300, topic_change))
     asyncio.create_task(bg_task(60, delete_task))
+    asyncio.create_task(bg_task(60, delete_error))
 
 
 @app.get("/api/test")
