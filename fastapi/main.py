@@ -89,7 +89,7 @@ async def generate_task():
     topic_oldest = await db.topic.find().sort("spiderTime").limit(1000).to_list(1000)
     for i in topic_oldest:
         for page in page_range(i['reply']):
-            await new_task(i['id'], page)
+            await new_task(i['id'], page, 'oldest')
 
     # # TEMP: 按顺序爬取 1 到最新主题，每次取 100 个，只爬第一页，爬完一轮后不再执行
     # await db.info.update_one({}, {
@@ -101,7 +101,7 @@ async def generate_task():
     # info = await db.info.find_one()
     # if info['cursor'] <= latest_topic['id'] - 3000:
     #     for i in range(info['cursor']-100, info['cursor']):
-    #         await new_task(i, 1)
+    #         await new_task(i, 1, 'cursor')
 
 async def topic_change():
     '''网站最近更新 https://www.v2ex.com/changes'''
@@ -119,7 +119,7 @@ async def topic_change():
                 continue
 
             for page in page_range(reply_num):
-                await new_task(id, page)
+                await new_task(id, page, 'change')
 
 async def delete_task():
     '''清除已完成的爬虫任务'''
@@ -127,13 +127,52 @@ async def delete_task():
     print('清除已完成的爬虫任务')
     await db.task.delete_many({
         'complete_time': {'$ne': None},
-        'distribute_time': {'$ne': None}}
-    )
+        # 'distribute_time': {'$ne': None}
+    })
 
 async def delete_error():
-    '''清空错误'''
-
+    '''清理错误'''
     print('清理错误')
+
+    # 502 错误需要删除错误重爬一次
+    errors = await db.error.find({'error': {'$regex': r'错误码502'}}).to_list(1000)
+    for i in errors:
+        await db.error.delete_one({'_id': i['_id']})
+        result = re.search(r'/t/(\d+)', i['url'])
+        if not result:
+            continue
+            
+        topic_id = int(result.group(1))
+        page = re.search(r'=(\d+)', i['url'])
+        page = int(page.group(1)) if page else 1
+        await new_task(topic_id, page, '502')
+
+    # post 错误需要删除错误重爬一次
+    errors = await db.error.find({'error': {'$regex': r'at post'}}).to_list(1000)
+    for i in errors:
+        await db.error.delete_one({'_id': i['_id']})
+        result = re.search(r'/t/(\d+)', i['url'])
+        if not result:
+            continue
+            
+        topic_id = int(result.group(1))
+        page = re.search(r'=(\d+)', i['url'])
+        page = int(page.group(1)) if page else 1
+        await new_task(topic_id, page, 'post')
+
+    # 403 错误需要删除错误重爬一次
+    errors = await db.error.find({'error': {'$regex': r'错误码403'}}).to_list(1000)
+    for i in errors:
+        await db.error.delete_one({'_id': i['_id']})
+        result = re.search(r'/t/(\d+)', i['url'])
+        if not result:
+            continue
+            
+        topic_id = int(result.group(1))
+        page = re.search(r'=(\d+)', i['url'])
+        page = int(page.group(1)) if page else 1
+        await new_task(topic_id, page, '403')
+
     # 404 错误删除任务创建一个 0 分主题
     errors = await db.error.find({'error': {'$regex': r'错误码404'}}).to_list(1000)
     for i in errors:
@@ -182,6 +221,28 @@ async def startup_event():
 
 @app.get("/api/test")
 async def test():
+
+    # 重爬所有任务
+    await db.task.update_many({
+            'distribute_time': {'$lte': datetime.datetime.now() - datetime.timedelta(seconds=60)},
+            'complete_time': None
+        }, {'$set': {'distribute_time': None, 'sign': 'reset'}})
+    return 0
+
+    # id 遍历查询缺少的主题
+    from fastapi.responses import StreamingResponse
+    async def iterfile():  # 
+        # for i in range(1,926000):
+        for i in range(1,10000):
+            topic = await db.topic.find_one({'id': i})
+            if topic:
+                if not i % 1000:
+                    print(i)
+                # yield 'ok: ' + str(i) + '\n'
+            else:
+                yield 'none: === ' + str(i) + '\n'
+
+    return StreamingResponse(iterfile())
 
     # 要执行几次，可以解决老版本无法爬取无正文的报错
     # errors = await db.error.find({'error': {'$regex': r'null'}}).to_list(20000)
@@ -249,7 +310,7 @@ async def home(request: Request):
         'topic_recent_90days_total': await db.topic.count_documents({
             'spiderTime': {'$lte': datetime.datetime.now() - datetime.timedelta(days=90)}
         }),
-        'cursor': (await db.info.find_one())['cursor'],
+        # 'cursor': (await db.info.find_one())['cursor'],
         'latest_topic_id': (await db.topic.find_one(sort=[('id', -1)]))['id'],
         # 任务总数
         'task_total': await db.task.count_documents({}),
@@ -318,7 +379,7 @@ def page_range(num: int, page_num: int = 100) -> list:
         return [1]
 
 
-async def new_task(id: int, page: int):
+async def new_task(id: int, page: int, task_type: str):
     '''新建爬虫任务'''
 
     await db.task.update_one(
@@ -328,6 +389,7 @@ async def new_task(id: int, page: int):
             'page': page,
             'distribute_time': None,
             'complete_time': None,
+            'type': task_type,
         }},
     upsert=True)
 
@@ -343,12 +405,12 @@ async def new_task(id: int, page: int):
 async def get_task():
     '''获取爬虫任务（分配）'''
     task = await db.task.find_one_and_update({
-        'distribute_time': None
+        'distribute_time': None,
     }, {
         '$set': {
             'distribute_time': datetime.datetime.now()
         }
-    }, sort=[('_id', -1)])
+    }, sort=[('_id', 1)])
     if task:
         url = '/t/%s?p=%s' % (task['id'], task['page'])
         return Task(

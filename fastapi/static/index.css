@@ -51,6 +51,20 @@ a {
     border-radius: 3px;
 }
 
+.topic .content {
+    max-height: 30vh;
+    overflow: auto;
+    transition: max-height .3s;
+}
+
+.topic .content:hover {
+    max-height: 80vh;
+}
+
+.topic .content img {
+    max-width: 100%;
+}
+
 .topic p {
     margin: 2px 8px;
 }
