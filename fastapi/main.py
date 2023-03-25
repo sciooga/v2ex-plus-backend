@@ -114,6 +114,16 @@ async def delete_task():
         'complete_time': {'$ne': None},
         # 'distribute_time': {'$ne': None}
     })
+    # 重爬超时任务（任务要么完成要么报错进入 Error 处理）
+    await db.task.update_many({
+        'distribute_time': {'$lte': datetime.datetime.now() - datetime.timedelta(seconds=60)},
+        'complete_time': None
+    }, {
+        '$set': {
+           'distribute_time': None,
+           'sign': 'reset'
+        }
+    })
 
 async def delete_error():
     '''定时任务: 清理错误'''
@@ -158,6 +168,19 @@ async def delete_error():
             if topic_id:
                 await new_task(topic_id, page, rekey)
 
+    # 其余错误（主要是 get 和 null）无法判断，大部分重爬可以解决
+    errors = await db.error.find().to_list(1000)
+    for i in errors:
+        topic_id, page = get_id_page(i['url'])
+        if topic_id:
+            # 发生错误之后主题更新过则删除错误 TODO 考虑小概率多页主题只是某页出错
+            topic = await db.topic.find_one({'id': topic_id})
+            if i['time'] <= topic['spiderTime']:
+                await db.error.delete_one({'_id': i['_id']})
+            if await db.error.count_documents({'url': {'$regex': str(topic_id)}}) == 1:
+                await new_task(topic_id, page, rekey)
+    
+
 
 # 在应用程序启动之前运行的函数
 @app.on_event("startup")
@@ -172,11 +195,6 @@ async def startup_event():
 @app.get("/api/test", include_in_schema=False)
 async def test():
 
-    # 重爬所有任务
-    await db.task.update_many({
-            'distribute_time': {'$lte': datetime.datetime.now() - datetime.timedelta(seconds=60)},
-            'complete_time': None
-        }, {'$set': {'distribute_time': None, 'sign': 'reset'}})
     return 1
 
             
