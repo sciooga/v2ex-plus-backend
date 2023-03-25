@@ -169,7 +169,7 @@ async def startup_event():
     asyncio.create_task(bg_task(60, delete_error))
 
 
-@app.get("/api/test")
+@app.get("/api/test", include_in_schema=False)
 async def test():
 
     # 重爬所有任务
