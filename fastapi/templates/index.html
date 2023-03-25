@@ -29,7 +29,7 @@
     <h3 class="subtitle">精选回复</h3>
     <div class="wrapper">
         {% for i in replys %}
-        <a class='topic' href="https://v2ex.com/t/{{ i['topicId'] }}?page={{ i['topicPage'] }}#r_{{ i['id'] }}" target="_blank">
+        <a class='topic' href="https://v2ex.com/t/{{ i['topicId'] }}?p={{ i['topicPage'] }}#r_{{ i['id'] }}" target="_blank">
             <img class='avatar' src="{{ i['avatar'] }}">
             <div class='content'>
                 <p class="name">{{ i['content']|remove_tag_a|safe }}</p>

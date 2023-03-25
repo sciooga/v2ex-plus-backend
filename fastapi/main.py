@@ -44,13 +44,10 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-def localtime(date):
-    return date.astimezone(datetime.timezone(datetime.timedelta(hours=8)))
-
 def remove_tag_a(html):
     return re.sub('<a .*?>|</a>', '', html)
 
-templates.env.filters["localtime"] = localtime
+templates.env.filters["localtime"] = lambda x: x.astimezone(datetime.timezone(datetime.timedelta(hours=8)))
 templates.env.filters["remove_tag_a"] = remove_tag_a
 
 # 内存缓存 过期数据只有重启才会清理
@@ -78,7 +75,7 @@ async def bg_task(s: int, func: callable):
         await asyncio.sleep(s)
 
 async def generate_task():
-    '''生成长时间未更新主题的爬取任务'''
+    '''定时任务: 生成长时间未更新主题的爬取任务'''
 
     print('生成长时间未更新主题的爬取任务')
 
@@ -91,20 +88,8 @@ async def generate_task():
         for page in page_range(i['reply']):
             await new_task(i['id'], page, 'oldest')
 
-    # # TEMP: 按顺序爬取 1 到最新主题，每次取 100 个，只爬第一页，爬完一轮后不再执行
-    # await db.info.update_one({}, {
-    #     '$inc': {
-    #         'cursor': 100
-    #     }
-    # }, upsert=True)
-    # latest_topic = await db.topic.find_one(sort=[('id', -1)])
-    # info = await db.info.find_one()
-    # if info['cursor'] <= latest_topic['id'] - 3000:
-    #     for i in range(info['cursor']-100, info['cursor']):
-    #         await new_task(i, 1, 'cursor')
-
 async def topic_change():
-    '''网站最近更新 https://www.v2ex.com/changes'''
+    '''定时任务: 网站最近更新 https://www.v2ex.com/changes'''
 
     print('获取最新更新主题')
     async with aiohttp.request('GET', 'https://www.v2ex.com/changes') as r:
@@ -122,7 +107,7 @@ async def topic_change():
                 await new_task(id, page, 'change')
 
 async def delete_task():
-    '''清除已完成的爬虫任务'''
+    '''定时任务: 清除已完成的爬虫任务'''
 
     print('清除已完成的爬虫任务')
     await db.task.delete_many({
@@ -131,82 +116,47 @@ async def delete_task():
     })
 
 async def delete_error():
-    '''清理错误'''
+    '''定时任务: 清理错误'''
     print('清理错误')
 
-    # 502 错误需要删除错误重爬一次
-    errors = await db.error.find({'error': {'$regex': r'错误码502'}}).to_list(1000)
-    for i in errors:
-        await db.error.delete_one({'_id': i['_id']})
+    def get_id_page(url):
         result = re.search(r'/t/(\d+)', i['url'])
         if not result:
-            continue
+            return None, None
             
         topic_id = int(result.group(1))
         page = re.search(r'=(\d+)', i['url'])
         page = int(page.group(1)) if page else 1
-        await new_task(topic_id, page, '502')
-
-    # post 错误需要删除错误重爬一次
-    errors = await db.error.find({'error': {'$regex': r'at post'}}).to_list(1000)
-    for i in errors:
-        await db.error.delete_one({'_id': i['_id']})
-        result = re.search(r'/t/(\d+)', i['url'])
-        if not result:
-            continue
-            
-        topic_id = int(result.group(1))
-        page = re.search(r'=(\d+)', i['url'])
-        page = int(page.group(1)) if page else 1
-        await new_task(topic_id, page, 'post')
-
-    # 403 错误需要删除错误重爬一次
-    errors = await db.error.find({'error': {'$regex': r'错误码403'}}).to_list(1000)
-    for i in errors:
-        await db.error.delete_one({'_id': i['_id']})
-        result = re.search(r'/t/(\d+)', i['url'])
-        if not result:
-            continue
-            
-        topic_id = int(result.group(1))
-        page = re.search(r'=(\d+)', i['url'])
-        page = int(page.group(1)) if page else 1
-        await new_task(topic_id, page, '403')
+        return topic_id, page
 
     # 404 错误删除任务创建一个 0 分主题
     errors = await db.error.find({'error': {'$regex': r'错误码404'}}).to_list(1000)
     for i in errors:
         await db.error.delete_one({'_id': i['_id']})
-        result = re.search(r'/t/(\d+)', i['url'])
-        if not result:
-            continue
-            
-        topic_id = int(result.group(1))
-        page = re.search(r'=(\d+)', i['url'])
-        page = int(page.group(1)) if page else 1
+        topic_id, page = get_id_page(i['url'])
+        if topic_id:
+            await db.task.delete_many({'id': topic_id})
+            await db.topic.update_one(
+                {'id': topic_id},
+                {"$set": Topic(
+                    spiderTime = datetime.datetime(2999,1,1),
+                    date = datetime.datetime(2999,1,1),
+                    id = topic_id, name = '', node = '',
+                    author = '', avatar = '', reply = 0,
+                    vote = 0, click = 0, collect = 0,
+                    thank = 0, score = 0, content = '',
+                    append = [], replys = [],
+                ).dict()
+            }, upsert=True)
 
-        await db.task.delete_many({'id': topic_id})
-        await db.topic.update_one(
-            {'id': topic_id},
-            {"$set": Topic(
-                spiderTime = datetime.datetime(2999,1,1),
-                id = topic_id,
-                name = '',
-                node = '',
-                author = '',
-                avatar = '',
-                date = datetime.datetime(2999,1,1),
-                reply = 0,
-                vote = 0,
-                click = 0,
-                collect = 0,
-                thank = 0,
-                score = 0,
-                content = '',
-                append = [],
-                replys = [],
-            ).dict()
-        }, upsert=True)
+    # 403、502、post 错误需要删除错误重爬一次
+    for rekey in [r'错误码502', r'at post',r'错误码403']:
+        errors = await db.error.find({'error': {'$regex': rekey}}).to_list(1000)
+        for i in errors:
+            await db.error.delete_one({'_id': i['_id']})
+            topic_id, page = get_id_page(i['url'])
+            if topic_id:
+                await new_task(topic_id, page, rekey)
 
 
 # 在应用程序启动之前运行的函数
@@ -227,56 +177,12 @@ async def test():
             'distribute_time': {'$lte': datetime.datetime.now() - datetime.timedelta(seconds=60)},
             'complete_time': None
         }, {'$set': {'distribute_time': None, 'sign': 'reset'}})
-    return 0
-
-    # id 遍历查询缺少的主题
-    from fastapi.responses import StreamingResponse
-    async def iterfile():  # 
-        # for i in range(1,926000):
-        for i in range(1,10000):
-            topic = await db.topic.find_one({'id': i})
-            if topic:
-                if not i % 1000:
-                    print(i)
-                # yield 'ok: ' + str(i) + '\n'
-            else:
-                yield 'none: === ' + str(i) + '\n'
-
-    return StreamingResponse(iterfile())
-
-    # 要执行几次，可以解决老版本无法爬取无正文的报错
-    # errors = await db.error.find({'error': {'$regex': r'null'}}).to_list(20000)
-    # 要执行几次，可以解决提交数据时网络不稳定的报错
-    # errors = await db.error.find({'error': {'$regex': r'at post'}}).to_list(1000)
-    errors = await db.error.find({'error': {'$regex': r'null'}}).to_list(35000)
-    for i in errors:
-        print(i['url'])
-        result = re.search(r'/t/(\d+)', i['url'])
-        if not result:
-            print('='*20, 'url 不正确', dict(i))
-            continue
-            
-        topic_id = int(result.group(1))
-        page = re.search(r'=(\d+)', i['url'])
-        page = int(page.group(1)) if page else 1
-        topic = await db.topic.find_one({'id': topic_id})
-        if topic:
-            await db.error.delete_one({'_id': i['_id']})
-            print('del')
-
-        # task = await db.task.find_one_and_update(
-        #     {'id': topic_id, 'page': page},
-        #     {"$set": {'distribute_time': None}}
-        # )
-        # if not task:
-        #     await db.error.delete_one({'_id': i['_id']})
-        print('==')
+    return 1
 
             
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     '''各类主题列表及爬虫信息'''
-    # await db.reply.delete_many({'content': {'$regex': r'div class="show-reply"'}})
 
     topics = []
     # 最近 7 天每天前三的主题且得分高于 8000 分
@@ -392,14 +298,6 @@ async def new_task(id: int, page: int, task_type: str):
             'type': task_type,
         }},
     upsert=True)
-
-    # if not await db.task.find_one({'id': id, 'page': page}):
-    #     await db.task.insert_one({
-    #         'id': id,
-    #         'page': page,
-    #         'distribute_time': None,
-    #         'complete_time': None,
-    #     })
 
 
 async def get_task():
