@@ -5,7 +5,8 @@ async def check_index():
     client = motor.motor_asyncio.AsyncIOMotorClient('mongodb://mongo')
     db = client['V2EX']
     collection = db['topic']
-    cursor = collection.find({}, {'id': 1}).sort('id', 1)
+    # 已经遍历过一次了，后面只需要从 92 万开始
+    cursor = collection.find({'id': {'get': 900000}}, {'id': 1}).sort('id', 1)
     prev_index = None
     async for document in cursor:
         index = document.get('id')

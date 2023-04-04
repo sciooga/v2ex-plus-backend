@@ -6,6 +6,7 @@ from fastapi.templating import Jinja2Templates
 import motor.motor_asyncio
 from bson import ObjectId
 from model import *
+import traceback
 import datetime
 import asyncio
 import aiohttp
@@ -71,7 +72,11 @@ async def bg_task(s: int, func: callable):
         try:
             await func()
         except Exception as e:
+            print('='*20)
+            print(func.__name__)
             print(e)
+            traceback.print_exc()
+            print('='*20)
         await asyncio.sleep(s)
 
 async def generate_task():
@@ -87,6 +92,15 @@ async def generate_task():
     for i in topic_oldest:
         for page in page_range(i['reply']):
             await new_task(i['id'], page, 'oldest')
+
+    # 最近一个月的 1000 个主题
+    topic_recent = await db.topic.find({
+            'date': {'$gte': datetime.datetime.now() - datetime.timedelta(days=30)}
+        }).sort("spiderTime").limit(1000).to_list(1000)
+
+    for i in topic_recent:
+        for page in page_range(i['reply']):
+            await new_task(i['id'], page, 'recent')
 
 async def topic_change():
     '''定时任务: 网站最近更新 https://www.v2ex.com/changes'''
@@ -175,10 +189,13 @@ async def delete_error():
         if topic_id:
             # 发生错误之后主题更新过则删除错误 TODO 考虑小概率多页主题只是某页出错
             topic = await db.topic.find_one({'id': topic_id})
-            if i['time'] <= topic['spiderTime']:
+            if topic and i['time'] <= topic['spiderTime']:
                 await db.error.delete_one({'_id': i['_id']})
             if await db.error.count_documents({'url': {'$regex': str(topic_id)}}) == 1:
                 await new_task(topic_id, page, rekey)
+        else:
+            # url 错误的直接删除
+            await db.error.delete_one({'_id': i['_id']})
     
 
 
@@ -230,9 +247,9 @@ async def home(request: Request):
         'replys': replys,
         # 主题总数
         # 'topic_total': await db.topic.count_documents({}),
-        # 超 90 天未爬取主题数
-        'topic_recent_90days_total': await db.topic.count_documents({
-            'spiderTime': {'$lte': datetime.datetime.now() - datetime.timedelta(days=90)}
+        # 超 3 天未爬取主题数
+        'topic_recent_3days_total': await db.topic.count_documents({
+            'spiderTime': {'$lte': datetime.datetime.now() - datetime.timedelta(days=3)}
         }),
         # 'cursor': (await db.info.find_one())['cursor'],
         'latest_topic_id': (await db.topic.find_one(sort=[('id', -1)]))['id'],
@@ -288,8 +305,11 @@ async def topic_info(task: str, topic: Topic) -> SuccessResponse:
     await db.topic.update_one({'id': topic['id']}, {"$set": topic}, upsert=True)
     # TEMP 临时排除浏览状态提交的回复（其他插件影响内容）
     for i in replys:
-        if '<div class="show-reply">' not in i['content']:
-            await db.reply.find_one_and_update({'id': i['id']}, {"$set": i}, upsert=True)
+        if '<div class="show-reply">' in i['content']:
+            continue
+        if '的这条回复发送感谢' in i['content']:
+            continue
+        await db.reply.find_one_and_update({'id': i['id']}, {"$set": i}, upsert=True)
     if (task != 'undefined'):
         await complete_task(task)
     return SuccessResponse()
