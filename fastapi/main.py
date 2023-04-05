@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, BackgroundTasks
+from fastapi import FastAPI, Request, BackgroundTasks, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -84,7 +84,7 @@ async def generate_task():
 
     print('生成长时间未更新主题的爬取任务')
 
-    if await db.task.count_documents({'distribute_time': None}) >= 500:
+    if await db.task.count_documents({'distribute_time': None}) >= 200:
         return
 
     # 最久没更新的 1000 个主题
@@ -93,10 +93,10 @@ async def generate_task():
         for page in page_range(i['reply']):
             await new_task(i['id'], page, 'oldest')
 
-    # 最近一个月的 1000 个主题
+    # 最近一个月的 100 个主题
     topic_recent = await db.topic.find({
             'date': {'$gte': datetime.datetime.now() - datetime.timedelta(days=30)}
-        }).sort("spiderTime").limit(1000).to_list(1000)
+        }).sort("spiderTime").limit(1000).to_list(100)
 
     for i in topic_recent:
         for page in page_range(i['reply']):
@@ -186,16 +186,17 @@ async def delete_error():
     errors = await db.error.find().to_list(1000)
     for i in errors:
         topic_id, page = get_id_page(i['url'])
-        if topic_id:
-            # 发生错误之后主题更新过则删除错误 TODO 考虑小概率多页主题只是某页出错
-            topic = await db.topic.find_one({'id': topic_id})
-            if topic and i['time'] <= topic['spiderTime']:
-                await db.error.delete_one({'_id': i['_id']})
-            if await db.error.count_documents({'url': {'$regex': str(topic_id)}}) == 1:
-                await new_task(topic_id, page, rekey)
-        else:
+        if not topic_id:
             # url 错误的直接删除
             await db.error.delete_one({'_id': i['_id']})
+        # 发生错误之后主题更新过则删除错误 TODO 考虑小概率多页主题只是某页出错
+        topic = await db.topic.find_one({'id': topic_id})
+        if topic and i['time'] <= topic['spiderTime']:
+            await db.error.delete_one({'_id': i['_id']})
+        if await db.error.count_documents({'url': {'$regex': r'/t/%s\?p=%s' % (topic_id, page)}}) == 1:
+            await new_task(topic_id, page, rekey)
+        else:
+            print('主题需要人工处理错误', 'https://v2ex.com/t/%s?p=%s' % (topic_id, page))
     
 
 
@@ -247,9 +248,9 @@ async def home(request: Request):
         'replys': replys,
         # 主题总数
         # 'topic_total': await db.topic.count_documents({}),
-        # 超 3 天未爬取主题数
-        'topic_recent_3days_total': await db.topic.count_documents({
-            'spiderTime': {'$lte': datetime.datetime.now() - datetime.timedelta(days=3)}
+        # 超两周未爬取主题数
+        'topic_recent_2w_total': await db.topic.count_documents({
+            'spiderTime': {'$lte': datetime.datetime.now() - datetime.timedelta(days=14)}
         }),
         # 'cursor': (await db.info.find_one())['cursor'],
         'latest_topic_id': (await db.topic.find_one(sort=[('id', -1)]))['id'],
@@ -340,6 +341,9 @@ async def new_task(id: int, page: int, task_type: str):
 
 async def get_task():
     '''获取爬虫任务（分配）'''
+    # 更新速度可以放慢一半
+    if random.random() >= 0.5:
+        return None
     task = await db.task.find_one_and_update({
         'distribute_time': None,
     }, {
