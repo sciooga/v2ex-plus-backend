@@ -96,7 +96,7 @@ async def generate_task():
     # 最近一个月的 100 个主题
     topic_recent = await db.topic.find({
             'date': {'$gte': datetime.datetime.now() - datetime.timedelta(days=30)}
-        }).sort("spiderTime").limit(1000).to_list(100)
+        }).sort("spiderTime").limit(100).to_list(100)
 
     for i in topic_recent:
         for page in page_range(i['reply']):
@@ -220,9 +220,13 @@ async def test():
 async def home(request: Request):
     '''各类主题列表及爬虫信息'''
 
+    days = list(range(1, 8))
+    for i in range(10):
+        days.append(random.randint(8,365*3))
+
     topics = []
-    # 最近 7 天每天前三的主题且得分高于 8000 分
-    for i in range(1, 8):
+    # 每天前三的主题且得分高于 8000 分
+    for i in days:
         day = datetime.datetime.now() - datetime.timedelta(days=i)
         topics += (await db.topic.find({
             "date": {
@@ -232,8 +236,8 @@ async def home(request: Request):
         }).sort("score", -1).limit(3).to_list(3))
     
     replys = []
-    # 最近 7 天每天前三的回复
-    for i in range(1, 8):
+    # 每天前三的回复
+    for i in days:
         day = datetime.datetime.now() - datetime.timedelta(days=i)
         replys += (await db.reply.find({
             "date": {
@@ -248,6 +252,11 @@ async def home(request: Request):
         'replys': replys,
         # 主题总数
         # 'topic_total': await db.topic.count_documents({}),
+        # 近一月超三天未爬取主题数
+        'topic_recent_total': await db.topic.count_documents({
+            'date': {'$gte': datetime.datetime.now() - datetime.timedelta(days=30)},
+            'spiderTime': {'$lte': datetime.datetime.now() - datetime.timedelta(days=3)}
+        }),
         # 超两周未爬取主题数
         'topic_recent_2w_total': await db.topic.count_documents({
             'spiderTime': {'$lte': datetime.datetime.now() - datetime.timedelta(days=14)}
@@ -270,6 +279,23 @@ async def home(request: Request):
     }
 
     return templates.TemplateResponse("index.html", data)
+
+            
+@app.get("/store", response_class=HTMLResponse)
+async def store(request: Request):
+    styles = await db.style.find().limit(100).to_list(100)
+    data = {
+        'request': request,
+        'styles': styles
+    }
+    return templates.TemplateResponse("store.html", data)
+
+            
+@app.get("/style/{style_id}", response_class=HTMLResponse)
+async def style(style_id):
+        
+    style = await db.style.find_one({'_id': ObjectId(style_id)})
+    return HTMLResponse(style['css'], media_type="text/css")
 
 
 @app.get("/api/topic/recommend", response_model=List[Topic])
@@ -342,7 +368,7 @@ async def new_task(id: int, page: int, task_type: str):
 async def get_task():
     '''获取爬虫任务（分配）'''
     # 更新速度可以放慢一半
-    if random.random() >= 0.5:
+    if random.random() >= 0.3:
         return None
     task = await db.task.find_one_and_update({
         'distribute_time': None,

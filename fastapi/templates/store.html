@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-cmn-Has-ZN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="referrer" content="always">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="description" content="vDaily - V2EX 精选">
+    <link href="/static/index.css" rel="stylesheet">
+    <title>vDaily - V2EX 样式商城</title>
+</head>
+
+<body>
+    <h1 class="title">vDaily - V2EX 样式商城</h1>
+    <h3 class="subtitle">精选样式</h3>
+    {% for i in styles %}
+    <div class="wrapper style">
+        <p class="name">{{ i['name'] }}</p>
+        <div>
+            <img src="{{ i['img1'] }}">
+            <img src="{{ i['img2'] }}">
+        </div>
+        <div>
+            <p>
+                作者: <a href="{{ i['author_link'] }}" target="_blank">{{ i['author'] }}</a> ·
+                介绍: <a href="{{ i['intr_link'] }}" target="_blank">{{ i['intr'] }}</a> ·
+                Github: <a href="{{ i['github_link'] }}" target="_blank">{{ i['github'] }}</a>
+            </p>
+            <div>
+                <input type="text" onfocus="select()" value='@import "//vdaily.huguotao.com/style/{{ i["_id"] }}";'>
+                <button>一键复制</button>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    <script>
+        document.querySelectorAll('button').forEach(el => {
+            el.addEventListener('click', () => {
+                el.parentElement.querySelector('input').select()
+                document.execCommand('copy', true)
+                if (confirm('复制成功，是否前往设置页设置自定义 CSS？')) window.open('https://v2ex.com/settings#Bottom')
+            })
+        })
+    </script>
+    <div class="status">如果您有新主题提交或反馈请 <a href="mailto:sciooga@gmail.com">mailto:sciooga@gmail.com</a></div>
+    <div class="status">
+        文档：<a href="https://vdaily.huguotao.com/redoc">API 开放接口</a> ·
+        状态：<a href="https://vdaily.huguotao.com/nginx_status">Nginx 状态</a> ·
+        统计：<a href="https://vdaily.huguotao.com/report.html">请求统计</a><br>
+    </div>
+    <a class='beian' href='http://www.beian.miit.gov.cn/'>桂ICP备15001906号-2</a>
+</body>
+
+</html>
