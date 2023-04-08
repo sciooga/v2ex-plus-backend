@@ -2,3 +2,4 @@ motor
 fastapi[all]
 aiohttp
 jinja2
+docker

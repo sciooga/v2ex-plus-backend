@@ -5,7 +5,8 @@ import asyncio
 import aiohttp
 import re
 
-from tools import page_range, new_task, generate_weekly
+from tools import localtime, page_range, new_task, send_msg_to_tg, generate_weekly
+from model import Topic
 from database import db
 
 TASKS = []
@@ -156,26 +157,40 @@ async def delete_error():
         if await db.error.count_documents({'url': {'$regex': r'/t/%s\?p=%s' % (topic_id, page)}}) < 3:
             await new_task(topic_id, page, rekey)
         else:
-            print('主题需要人工处理错误', 'https://v2ex.com/t/%s?p=%s' % (topic_id, page))
+            await send_msg_to_tg('主题需要人工处理错误', 'https://v2ex.com/t/%s?p=%s' % (topic_id, page))
+
+
+@bg_task(60*60*12)
+async def a2_task():
+    # 半天检查一次 A2 是否过期
+    print('检查 A2 是否过期')
+    A2 = (await db.info.find_one())['A2']
+    cookies = {'A2': A2}
+    async with aiohttp.request('GET', 'https://v2ex.com/about', cookies=cookies) as r:
+        result = re.search(r'/signout\?once=(\d+)', await r.text())
+
+        if result:
+            print('A2 状态正常')
+        else:
+            await send_msg_to_tg('A2 过期，请协助: https://vdaily.huguotao.com/a2')
 
 
 @bg_task(30)
 async def weekly_task():
     # 每周日早上 10:00 自动发布周报
-    today = datetime.datetime.now()
-    if today.weekday() != 6 or today.hour != 10 or today.minute > 5:
-        print('没到时间')
+    today = localtime(datetime.datetime.now())
+    if today.weekday() != 5 or today.hour != 9 or today.minute > 5:
+        print('没到发送周报的时间', today)
         return
 
     title, content = await generate_weekly()
 
     weekly = await db.weekly.find_one({'title': title})
     if weekly:
-        print('周报已存在')
+        print('周报已存在无需重新发送')
         return
     
-    return
-    print('发布周报')
+    print('开始发布周报')
 
     url = 'https://www.v2ex.com/write?node=share'
     A2 = (await db.info.find_one())['A2']
@@ -190,16 +205,19 @@ async def weekly_task():
             'title': title,
             'content': content,
             'syntax': 'markdown',
+            'node_name': 'share',
             'once': once
         }
         async with session.post(url, data=payload) as resp:
             result = re.search(r'/t/(\d+)#reply0', await resp.text())
             if not result:
-                return '发布失败'
+                print('发布失败')
+                return
             topic_id = result.group(1)
-        
+    
     await db.weekly.insert_one({
         'title': title,
         'content': content,
         'id': topic_id
     })
+    print(f'发布成功 https://v2ex.com/t/{topic_id}')

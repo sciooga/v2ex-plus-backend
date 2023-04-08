@@ -1,15 +1,16 @@
 from fastapi import FastAPI, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from typing import List
 import datetime
 import asyncio
 import random
+import docker
 
 from task import run_task
-from tools import remove_tag_a, new_task, get_task, complete_task, generate_weekly
+from tools import localtime, remove_tag_a, cache, new_task, get_task, complete_task, get_login_info, login_get_a2, generate_weekly
 from database import db
 from model import SuccessResponse, Reply, Topic, Task, ErrorReport
 
@@ -40,7 +41,7 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-templates.env.filters["localtime"] = lambda x: x.astimezone(datetime.timezone(datetime.timedelta(hours=8)))
+templates.env.filters["localtime"] = localtime
 templates.env.filters["remove_tag_a"] = remove_tag_a
 
 
@@ -127,6 +128,30 @@ async def weekly(request: Request):
     }
     return templates.TemplateResponse("weekly.html", data)
 
+
+@app.get("/a2", response_class=HTMLResponse)
+async def get_a2():
+    
+    info = await get_login_info()
+    html = f'<img src="data:image/png;base64,{ info["img"]}">'
+
+    html += '<form method="GET" action="/a2/result">'
+    html += '<input type="text" name="captcha" placeholder="验证码">'
+    html += '<input type="text" name="pwd" placeholder="vPlus 密码">'
+    html += f'<input type="hidden" name="once" value="{info["once"]}">'
+    html += f'<input type="hidden" name="session" value="{info["session"]}">'
+    html += f'<input type="hidden" name="u" value="{info["tokens"][0]}">'
+    html += f'<input type="hidden" name="p" value="{info["tokens"][1]}">'
+    html += f'<input type="hidden" name="o" value="{info["tokens"][2]}">'
+    html += '<input type="submit">'
+    html += '</form>'
+    
+    return HTMLResponse(html)
+
+@app.get("/a2/result")
+async def post_a2(captcha: str, pwd: str, once: str, session: str, u: str, p: str, o: str):
+    a2 = await login_get_a2(captcha, pwd, once, session, u, p, o)
+    return str(a2)
             
 @app.get("/store", response_class=HTMLResponse)
 async def store(request: Request):
@@ -137,8 +162,8 @@ async def store(request: Request):
     }
     return templates.TemplateResponse("store.html", data)
 
-            
 @app.get("/style/{style_name}", response_class=HTMLResponse)
+@cache(3600)
 async def style(style_name):
         
     style = await db.style.find_one({'github': style_name})
@@ -194,11 +219,7 @@ async def topic_task() -> Task:
     '''获取爬取任务'''
     # return Task(sign='',id=0,page=1,url='')
 
-    task = await get_task()
-    if task:
-        return task
-    else:
-        return Task(sign='',id=0,page=0,url='')
+    return await get_task()
 
 
 @app.post("/api/error/info", response_model=SuccessResponse, include_in_schema=False)
@@ -206,3 +227,15 @@ async def error_info(error: ErrorReport) -> SuccessResponse:
     '''错误上报'''
     await db.error.insert_one(error.dict())
     return SuccessResponse()
+
+
+@app.get("/logs", response_class=StreamingResponse)
+async def logs():
+    '''请求日志'''
+
+    client = docker.DockerClient(base_url='unix:///var/run/docker.sock')
+    for container in client.containers.list():
+        if 'fastapi' in container.name:
+            log_stream = container.logs(stream=True, follow=True, tail=100)
+            return StreamingResponse(log_stream, media_type="text/plain")
+    return None

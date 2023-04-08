@@ -1,6 +1,10 @@
+from functools import wraps
 from bson import ObjectId
 import datetime
+import aiohttp
 import random
+import base64
+import time
 import re
 
 from database import db
@@ -10,21 +14,26 @@ from model import Task
 def remove_tag_a(html):
     return re.sub('<a .*?>|</a>', '', html)
 
+def localtime(dt):
+    return dt.astimezone(datetime.timezone(datetime.timedelta(hours=8)))
+
 # 内存缓存 过期数据只有重启才会清理
 def cache(expiration_time=60):
     cached_results = {}
 
     def wrapper(func):
-        def inner(*args):
+        @wraps(func)
+        async def inner(*args, **kwargs):
             if args in cached_results:
                 result, timestamp = cached_results[args]
                 if time.time() - timestamp < expiration_time:
                     return result
-            result = func(*args)
+            result = await func(*args, **kwargs)
             cached_results[args] = (result, time.time())
             return result
         return inner
     return wrapper
+
 
 def page_range(num: int, page_num: int = 100) -> list:
     '''通过数量及分页数生成页码列表'''
@@ -53,7 +62,8 @@ async def get_task():
     '''获取爬虫任务（分配）'''
     # 更新速度可以放慢一半
     if random.random() >= 0.3:
-        return None
+        return Task(sign='',id=0,page=0,url='')
+
     task = await db.task.find_one_and_update({
         'distribute_time': None,
     }, {
@@ -61,16 +71,17 @@ async def get_task():
             'distribute_time': datetime.datetime.now()
         }
     }, sort=[('_id', 1)])
-    if task:
-        url = '/t/%s?p=%s' % (task['id'], task['page'])
-        return Task(
-            sign=str(task['_id']),
-            id=task['id'],
-            page=task['page'],
-            url=url
-        )
-    else:
-        return None
+    
+    if not task:
+        return Task(sign='',id=0,page=0,url='')
+
+    url = '/t/%s?p=%s' % (task['id'], task['page'])
+    return Task(
+        sign=str(task['_id']),
+        id=task['id'],
+        page=task['page'],
+        url=url
+    )
 
 
 async def complete_task(sign):
@@ -82,12 +93,94 @@ async def complete_task(sign):
             'complete_time': datetime.datetime.now()
         }
     })
+
+
+async def send_msg_to_tg(message):
+    '''发送消息到 tg 群'''
     
+    print(message)
+    bot_token = "6166416562:AAEoN6dIlqM0Lf13lhnOEZyzcwC1fR4YKVM" # token 没什么价值
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    payload = {
+        "chat_id": "-203039215",
+        "text": message
+    }
+
+    async with aiohttp.request('POST', url, json=payload) as r:
+        return await r.json()
+
+
+headers = {
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/33.0.1750.152 Safari/537.36",
+    "Host": "www.v2ex.com",
+    "Referer": "https://www.v2ex.com/signin",
+    "Origin": "https://www.v2ex.com"
+}
+
+async def get_login_info():
+    '''获取 V 站登录信息'''
+
+    async with aiohttp.ClientSession(headers=headers) as session:
+        async with session.get('https://v2ex.com/signin') as rep:
+            html = await rep.text()
+            print(html)
+            # 获取 once
+            once = re.search(r"value=\"(\d+?)\" name=\"once\"", html)
+            if once:
+                once = str(once.group(1))
+            else:
+                return '登陆页面无法获取到 once' + html
+
+            # 获取tokens,cookies
+            tokens = re.findall('class="sl" name="(.*?)"', html)
+            cookies = session.cookie_jar.filter_cookies('v2ex.com')
+
+        # 请求验证码
+        async with session.get('https://v2ex.com/_captcha?once=' + once) as rep:
+            # 得到验证码图片的base64编码
+            img_content = await rep.read()
+            img_b64 = base64.b64encode(img_content).decode('ascii')
+        
+        return {
+            'once': once,
+            'tokens': tokens,
+            'session': cookies['PB3_SESSION'].value,
+            'img': img_b64
+        }
+
+async def login_get_a2(captcha, pwd, once, session, u, p, o):
+    '''登录获取 A2'''
+
+    cookies = {
+        'PB3_SESSION': session
+    }
+
+    payload = {
+        u: 'v2explus@gmail.com',
+        p: pwd,
+        o: captcha,
+        'once': once,
+        'next': '/'
+    }
+    
+    async with aiohttp.ClientSession(headers=headers, cookies=cookies) as session:
+        async with session.post('https://v2ex.com/signin', params=payload) as r:
+            html = await r.text()
+
+            cookies = session.cookie_jar.filter_cookies('https://v2ex.com')
+            print('==============')
+            print(cookies)
+            print('==============')
+            print(cookies['A2'].value)
+            return html
+
+
 
 async def generate_weekly():
-    # 获取上周六至周五的周报
+    '''获取上周六至周五的周报'''
+
     # TODO 自动增加往期链接
-    today = datetime.datetime.now().replace(hour=0, minute=0, second=0)
+    today = localtime(datetime.datetime.now()).replace(hour=0, minute=0, second=0)
     saturday = today - datetime.timedelta(days=(today.weekday() + 2))
     friday = saturday + datetime.timedelta(days=6,hours=23,minutes=59) 
 
@@ -107,7 +200,7 @@ async def generate_weekly():
     content += '***\n'
     content += '### 🎉 热门主题\n'
     for i in topics:
-        info = f'{i["author"]} · {i["node"]} · {i["date"]:%Y-%m-%d}'
+        info = f'{i["author"]} · {i["node"]} · {localtime(i["date"]):%Y-%m-%d}'
         content += f'> [{i["score"]: >6} ➰ **{i["name"]}**  \n&emsp;&emsp;&emsp;&emsp;&emsp;&ensp;{info}](/t/{i["id"]})  \n\n'
         
 
@@ -122,7 +215,7 @@ async def generate_weekly():
         url = f'/t/{i["topicId"]}?p={i["topicPage"]}#r_{i["id"]}'
         reply = remove_tag_a(i['content']).replace("<br>", " ") # 移除 <a> <br>
         reply = re.sub(r'(.+imgur.+)(\.)', r'\1s.', reply) # 调整 imgur 大小
-        info = f'{i["author"]} · {i["date"]:%Y-%m-%d}'
+        info = f'{i["author"]} · {localtime(i["date"]):%Y-%m-%d}'
         content += f'> [{i["thank"]: >9} ➰ **{ reply }**  \n&emsp;&emsp;&emsp;&emsp;&emsp;&ensp;{info}]({ url })  \n\n'
 
     content += '***\n'
