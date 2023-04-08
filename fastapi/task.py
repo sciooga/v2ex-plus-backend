@@ -5,11 +5,10 @@ import asyncio
 import aiohttp
 import re
 
-from tools import page_range, new_task
-from weekly import generate_weekly
+from tools import page_range, new_task, generate_weekly
 from database import db
 
-
+TASKS = []
 def bg_task(s: int):
     def decorator(func):
         @wraps(func)
@@ -24,8 +23,13 @@ def bg_task(s: int):
                     traceback.print_exc()
                     print('='*20)
                 await asyncio.sleep(s)
+        TASKS.append(wrapper)
         return wrapper
     return decorator
+
+async def run_task():
+    for func in TASKS:
+        asyncio.create_task(func())
 
 
 @bg_task(10)
@@ -149,24 +153,30 @@ async def delete_error():
         topic = await db.topic.find_one({'id': topic_id})
         if topic and i['time'] <= topic['spiderTime']:
             await db.error.delete_one({'_id': i['_id']})
-        if await db.error.count_documents({'url': {'$regex': r'/t/%s\?p=%s' % (topic_id, page)}}) == 1:
+        if await db.error.count_documents({'url': {'$regex': r'/t/%s\?p=%s' % (topic_id, page)}}) < 3:
             await new_task(topic_id, page, rekey)
         else:
             print('主题需要人工处理错误', 'https://v2ex.com/t/%s?p=%s' % (topic_id, page))
 
 
+@bg_task(30)
 async def weekly_task():
     # 每周日早上 10:00 自动发布周报
     today = datetime.datetime.now()
     if today.weekday() != 6 or today.hour != 10 or today.minute > 5:
+        print('没到时间')
         return
 
     title, content = await generate_weekly()
 
     weekly = await db.weekly.find_one({'title': title})
     if weekly:
+        print('周报已存在')
         return
     
+    return
+    print('发布周报')
+
     url = 'https://www.v2ex.com/write?node=share'
     A2 = (await db.info.find_one())['A2']
     cookies = {'A2': A2}

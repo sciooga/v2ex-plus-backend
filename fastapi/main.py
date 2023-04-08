@@ -3,20 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from bson import ObjectId
 from typing import List
-import traceback
 import datetime
 import asyncio
-import aiohttp
 import random
-import time
-import re
 
-
-from task import generate_task, topic_change, delete_task, delete_error
-from tools import remove_tag_a, new_task, get_task, complete_task
-from weekly import generate_weekly
+from task import run_task
+from tools import remove_tag_a, new_task, get_task, complete_task, generate_weekly
 from database import db
 from model import SuccessResponse, Reply, Topic, Task, ErrorReport
 
@@ -55,10 +48,7 @@ templates.env.filters["remove_tag_a"] = remove_tag_a
 @app.on_event("startup")
 async def startup_event():
     print('启动定时任务')
-    asyncio.create_task(generate_task())
-    asyncio.create_task(topic_change())
-    asyncio.create_task(delete_task())
-    asyncio.create_task(delete_error())
+    asyncio.create_task(run_task())
 
             
 @app.get("/", response_class=HTMLResponse)
@@ -126,12 +116,6 @@ async def home(request: Request):
     return templates.TemplateResponse("index.html", data)
 
 
-
-
-
-
-
-
 @app.get("/weekly", response_class=HTMLResponse)
 async def weekly(request: Request):
     
@@ -154,10 +138,10 @@ async def store(request: Request):
     return templates.TemplateResponse("store.html", data)
 
             
-@app.get("/style/{style_id}", response_class=HTMLResponse)
-async def style(style_id):
+@app.get("/style/{style_name}", response_class=HTMLResponse)
+async def style(style_name):
         
-    style = await db.style.find_one({'_id': ObjectId(style_id)})
+    style = await db.style.find_one({'github': style_name})
     return HTMLResponse(style['css'], media_type="text/css")
 
 
@@ -166,9 +150,9 @@ async def topic_recommend() -> List[Topic]:
     '''推荐主题'''
     topics = await db.topic.find({
         'date': {
-            '$gte': datetime.datetime.now() - datetime.timedelta(days=3)
+            '$gte': datetime.datetime.now() - datetime.timedelta(days=7)
         }
-    }).sort("score", -1).limit(30).to_list(30)
+    }).sort("score", -1).limit(50).to_list(100)
     topics = random.sample(list(topics), 10)
     return list(map(dict, topics))
 
@@ -178,9 +162,9 @@ async def topic_recommend() -> List[Reply]:
     '''推荐回复'''
     replys = await db.reply.find({
         'date': {
-            '$gte': datetime.datetime.now() - datetime.timedelta(days=3)
+            '$gte': datetime.datetime.now() - datetime.timedelta(days=7)
         }
-    }).sort("thank", -1).limit(30).to_list(30)
+    }).sort("thank", -1).limit(50).to_list(100)
     replys = random.sample(list(replys), 10)
     for i in replys:
         i['content'] = remove_tag_a(i['content'])
