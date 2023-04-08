@@ -51,13 +51,13 @@ a {
     border-radius: 3px;
 }
 
-.topic .content {
+.topic .content .name{
     max-height: 30vh;
     overflow: auto;
     transition: max-height .3s;
 }
 
-.topic .content:hover {
+.topic:hover .content .name{
     max-height: 80vh;
 }
 
