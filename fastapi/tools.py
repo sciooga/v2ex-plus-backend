@@ -174,7 +174,7 @@ async def login_get_a2(captcha, pwd, once, session, u, p, o):
             
     db.info.update_one({}, {
         '$set': {
-            'A2': A2.value
+            'A2': A2.value,
             'A2_update': datetime.datetime.now()
         }
     })
