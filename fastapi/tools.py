@@ -123,7 +123,6 @@ async def get_login_info():
     async with aiohttp.ClientSession(headers=headers) as session:
         async with session.get('https://v2ex.com/signin') as rep:
             html = await rep.text()
-            print(html)
             # 获取 once
             once = re.search(r"value=\"(\d+?)\" name=\"once\"", html)
             if once:
@@ -133,7 +132,7 @@ async def get_login_info():
 
             # 获取tokens,cookies
             tokens = re.findall('class="sl" name="(.*?)"', html)
-            cookies = session.cookie_jar.filter_cookies('v2ex.com')
+            cookies = session.cookie_jar.filter_cookies('https://v2ex.com')
 
         # 请求验证码
         async with session.get('https://v2ex.com/_captcha?once=' + once) as rep:
@@ -141,6 +140,7 @@ async def get_login_info():
             img_content = await rep.read()
             img_b64 = base64.b64encode(img_content).decode('ascii')
         
+        print(cookies)
         return {
             'once': once,
             'tokens': tokens,
@@ -164,15 +164,21 @@ async def login_get_a2(captcha, pwd, once, session, u, p, o):
     }
     
     async with aiohttp.ClientSession(headers=headers, cookies=cookies) as session:
-        async with session.post('https://v2ex.com/signin', params=payload) as r:
+        async with session.post('https://v2ex.com/signin', params=payload, allow_redirects=True) as r:
             html = await r.text()
 
             cookies = session.cookie_jar.filter_cookies('https://v2ex.com')
-            print('==============')
-            print(cookies)
-            print('==============')
-            print(cookies['A2'].value)
-            return html
+            A2 = cookies.get('A2')
+            if not A2:
+                return '登录失败' + html
+            
+    db.info.update_one({}, {
+        '$set': {
+            'A2': A2.value
+        }
+    })
+    await send_msg_to_tg('A2 更新成功')
+    return '操作成功，A2 更新成功'
 
 
 
