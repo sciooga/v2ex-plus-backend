@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-cmn-Has-ZN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="referrer" content="always">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="description" content="vDaily - V2EX 周报">
+    <title>vDaily - V2EX 周报</title>
+    <script type="importmap">
+    {
+        "imports": {
+            "marked": "https://cdn.jsdelivr.net/npm/marked/+esm",
+            "vue": "https://unpkg.com/vue@3.2.47/dist/vue.esm-browser.js"
+        }
+    }
+    </script>
+    <style>
+        body {
+            margin: 0;
+        }
+
+        .editor {
+            height: 100vh;
+            display: flex;
+        }
+
+        .input,
+        .output {
+            overflow: auto;
+            width: 70%;
+            height: 100%;
+            box-sizing: border-box;
+            padding: 0 20px;
+        }
+
+        .input {
+            border: none;
+            width: 30%;
+            border-right: 1px solid #ccc;
+            resize: none;
+            outline: none;
+            background-color: #f6f6f6;
+            font-size: 14px;
+            font-family: 'Monaco', courier, monospace;
+            padding: 20px;
+        }
+
+        code {
+            color: #f66;
+        }
+
+        a {
+            color: #778087;
+            text-decoration: none;
+            word-break: break-word;
+        }
+    </style>
+</head>
+
+<body>
+    <script type="module">
+        import { createApp } from 'vue'
+        import { marked } from 'marked'
+        let markdown = `{{markdown|safe}}`
+        createApp({
+            data: () => ({
+                input: markdown
+            }),
+            computed: {
+                output() {
+                    return marked(this.input)
+                }
+            },
+            methods: {
+                update(e) {
+                    this.input = e.target.value
+                }
+            }
+        }).mount('#app')
+    </script>
+
+    <div id="app">
+        <div class="editor">
+            <textarea class="input" :value="input" @input="update"></textarea>
+            <div class="output" v-html="output"></div>
+        </div>
+    </div>
+</body>
+
+</html>
