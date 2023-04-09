@@ -218,6 +218,7 @@ async def weekly_task():
     await db.weekly.insert_one({
         'title': title,
         'content': content,
-        'id': topic_id
+        'id': topic_id,
+        'date': datetime.datetime.now()
     })
     print(f'发布成功 https://v2ex.com/t/{topic_id}')
