@@ -179,7 +179,7 @@ async def a2_task():
 async def weekly_task():
     # 每周日早上 10:00 自动发布周报
     today = localtime(datetime.datetime.now())
-    if today.weekday() != 5 or today.hour != 9 or today.minute > 5:
+    if today.weekday() != 6 or today.hour != 9 or today.minute > 5:
         print('没到发送周报的时间', today)
         return
 
