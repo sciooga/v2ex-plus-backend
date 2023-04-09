@@ -33,13 +33,13 @@ async def run_task():
         asyncio.create_task(func())
 
 
-@bg_task(10)
+@bg_task(30)
 async def generate_task():
     '''定时任务: 生成长时间未更新主题的爬取任务'''
 
     print('生成长时间未更新主题的爬取任务')
 
-    if await db.task.count_documents({'distribute_time': None}) >= 200:
+    if await db.task.count_documents({'distribute_time': None}) >= 100:
         return
 
     # 最久没更新的 1000 个主题
