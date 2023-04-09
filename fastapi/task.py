@@ -43,14 +43,17 @@ async def generate_task():
         return
 
     # 最久没更新的 1000 个主题
-    topic_oldest = await db.topic.find().sort("spiderTime").limit(1000).to_list(1000)
+    topic_oldest = await db.topic.find({
+        'spiderTime': {'$lte': datetime.datetime.now() - datetime.timedelta(days=7)}
+    }).sort("spiderTime").limit(1000).to_list(1000)
     for i in topic_oldest:
         for page in page_range(i['reply']):
             await new_task(i['id'], page, 'oldest')
 
     # 最近一个月的 100 个主题
     topic_recent = await db.topic.find({
-            'date': {'$gte': datetime.datetime.now() - datetime.timedelta(days=30)}
+            'date': {'$gte': datetime.datetime.now() - datetime.timedelta(days=30)},
+            'spiderTime': {'$lte': datetime.datetime.now() - datetime.timedelta(hours=3)}
         }).sort("spiderTime").limit(100).to_list(100)
 
     for i in topic_recent:
