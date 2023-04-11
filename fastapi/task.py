@@ -153,6 +153,7 @@ async def delete_error():
         if not topic_id:
             # url 错误的直接删除
             await db.error.delete_one({'_id': i['_id']})
+            return
         # 发生错误之后主题更新过则删除错误 TODO 考虑小概率多页主题只是某页出错
         topic = await db.topic.find_one({'id': topic_id})
         if topic and i['time'] <= topic['spiderTime']:
