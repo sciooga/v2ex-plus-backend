@@ -181,13 +181,14 @@ async def a2_task():
 
 @bg_task(30)
 async def weekly_task():
-    # 每周日早上 10:00 自动发布周报
+    # 每周日早上 9:00 自动发布周报
     today = localtime(datetime.datetime.now())
     if today.weekday() != 6 or today.hour != 9 or today.minute > 5:
         print('没到发送周报的时间', today)
         return
 
-    title, content = await generate_weekly()
+    saturday = today.replace(hour=0, minute=0, second=0) - datetime.timedelta(days=(today.weekday() + 2))
+    title, content = await generate_weekly(saturday)
 
     weekly = await db.weekly.find_one({'title': title})
     if weekly:

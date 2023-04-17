@@ -183,12 +183,9 @@ async def login_get_a2(captcha, pwd, once, session, u, p, o):
 
 
 
-async def generate_weekly():
-    '''获取上周六至周五的周报'''
-
-    # TODO 自动增加往期链接
-    today = localtime(datetime.datetime.now()).replace(hour=0, minute=0, second=0)
-    saturday = today - datetime.timedelta(days=(today.weekday() + 2))
+async def generate_weekly(saturday):
+    '''获取周六至周五的周报'''
+    
     friday = saturday + datetime.timedelta(days=6,hours=23,minutes=59) 
 
     title = f'✨ V2EX 周报 本周热门主题及高赞回复 {saturday:%m.%d}-{friday:%m.%d}'
@@ -201,7 +198,7 @@ async def generate_weekly():
         "date": {"$gte": saturday, "$lt": friday}
     }).sort("thank", -1).limit(30).to_list(30)
 
-    content = '🙋‍♂️ vDaily 为您统计了本周内的热门主题和高赞回复  \n\n'
+    content = '🙋‍♂️ vDaily 每周日早 9:00 为您统计本周内的热门主题和高赞回复  \n\n'
     content += '🛠️ 推荐使用站内流行的浏览器扩展: [V2EX Plus](https://chrome.google.com/webstore/detail/v2ex-plus/daeclijmnojoemooblcbfeeceopnkolo)  \n'
     content += '⚙️ 到这里选择您喜欢的 V 站主题样式: [V2EX 样式商城](https://vdaily.huguotao.com/store)  \n'
     content += '***\n'
@@ -225,8 +222,12 @@ async def generate_weekly():
         info = f'{i["author"]} · {localtime(i["date"]):%Y-%m-%d}'
         content += f'> [{i["thank"]: >9} ➰ **{ reply }**  \n&emsp;&emsp;&emsp;&emsp;&emsp;&ensp;{info}]({ url })  \n\n'
 
+    lastWeekly = await db.weekly.find_one({}, sort=[('_id', -1)])
+
     content += '***\n'
-    content += '🔗 查看更多优质主题及回复: [V2EX 精选](https://vdaily.huguotao.com)  \n'
+    content += f'🔗 回顾上一期周报: [{lastWeekly["title"]}](/t/{lastWeekly["id"]})  \n'
+    content += '🌐 查看更多优质主题及回复: [V2EX 精选](https://vdaily.huguotao.com)  \n'
+    content += '📰 RSS 订阅: [Atom](https://vdaily.huguotao.com/weekly/atom.xml)  \n'
     content += '✉️ 欢迎任何交流及反馈: [sciooga@gmail.com](mailto:sciooga@gmail.com)  \n'
     content += '\n周末愉快，下周再见👋'
     return title, content

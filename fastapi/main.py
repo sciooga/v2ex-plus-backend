@@ -119,14 +119,33 @@ async def home(request: Request):
 
 @app.get("/weekly", response_class=HTMLResponse)
 async def weekly(request: Request):
+
+    today = localtime(datetime.datetime.now()).replace(hour=0, minute=0, second=0)
+    saturday = today - datetime.timedelta(days=(today.weekday() + 2))
     
-    title, content = await generate_weekly()
+    title, content = await generate_weekly(saturday)
     
     data = {
         'request': request,
         'markdown': f'### { title }  \n' + content
     }
     return templates.TemplateResponse("weekly.html", data)
+
+
+@app.get("/weekly/atom.xml", response_class=HTMLResponse)
+async def weekly_atom(request: Request):
+
+    import markdown
+    today = localtime(datetime.datetime.now()).replace(hour=0, minute=0, second=0)
+    weeklys = await db.weekly.find().sort('_id', -1).limit(10).to_list(10)
+    for i in weeklys:
+        i['content'] = markdown.markdown(i['content'].replace('(/t/', '(https://v2ex.com/t/'))
+    data = {
+        'request': request,
+        'updated': datetime.datetime.today().strftime('%Y-%m-%dT%H:%M:%SZ'),
+        'weeklys': weeklys
+    }
+    return templates.TemplateResponse("weekly.xml", data, media_type="application/atom+xml; charset=UTF-8")
 
 
 @app.get("/a2", response_class=HTMLResponse)
