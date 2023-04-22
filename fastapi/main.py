@@ -11,7 +11,7 @@ import random
 import docker
 
 from task import run_task
-from tools import localtime, remove_tag_a, cache, new_task, get_task, complete_task, get_login_info, login_get_a2, generate_weekly
+from tools import localtime, dt_format, remove_tag_a, cache, new_task, get_task, complete_task, get_login_info, login_get_a2, generate_weekly
 from database import db
 from model import SuccessResponse, Reply, Topic, Task, ErrorReport
 
@@ -43,6 +43,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 templates.env.filters["localtime"] = localtime
+templates.env.filters["dt_format"] = dt_format
 templates.env.filters["remove_tag_a"] = remove_tag_a
 
 

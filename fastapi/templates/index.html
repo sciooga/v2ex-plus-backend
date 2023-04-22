@@ -30,7 +30,7 @@
                     <img class='avatar' src="{{ i['avatar'] }}">
                     <div>
                         <p class="name">{{ i['name'] }}</p>
-                        <p class="info">{{ i['author']}} · {{ i['date']|localtime }} · {{ i['score'] }}</p>
+                        <p class="info">{{ i['author']}} · {{ i['date']|localtime|dt_format }} · {{ i['score'] }}</p>
                     </div>
                 </a>
                 {% endfor %}
@@ -45,7 +45,7 @@
                     <img class='avatar' src="{{ i['avatar'] }}">
                     <div class='content'>
                         <p class="name">{{ i['content']|remove_tag_a|safe }}</p>
-                        <p class="info">{{ i['author']}} · {{ i['date']|localtime }} · {{ i['thank'] }}</p>
+                        <p class="info">{{ i['author']}} · {{ i['date']|localtime|dt_format }} · {{ i['thank'] }}</p>
                     </div>
                 </a>
                 {% endfor %}

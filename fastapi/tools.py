@@ -11,11 +11,15 @@ from database import db
 from model import Task
 
 
+def localtime(dt):
+    return dt.astimezone(datetime.timezone(datetime.timedelta(hours=8)))
+
+def dt_format(dt, format = '%Y-%m-%d %H:%M:%S'):
+    return dt.strftime(format)
+
 def remove_tag_a(html):
     return re.sub('<a .*?>|</a>', '', html)
 
-def localtime(dt):
-    return dt.astimezone(datetime.timezone(datetime.timedelta(hours=8)))
 
 # 内存缓存 过期数据只有重启才会清理
 def cache(expiration_time=60):

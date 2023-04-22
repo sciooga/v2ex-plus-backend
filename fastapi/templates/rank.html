@@ -18,14 +18,14 @@
     <h3 class="subtitle">
         按时间对主题及回复进行排行
         <br>
-        <a href="/rank?start={{ recent_30_days.strftime('%Y-%m-%d') }}">👉 30天</a> ·
-        <a href="/rank?start={{ recent_90_days.strftime('%Y-%m-%d') }}">👉 90天</a> ·
-        <a href="/rank?start={{ recent_365_days.strftime('%Y-%m-%d') }}">👉 365天</a>
+        <a href="/rank?start={{ recent_30_days|dt_format('%Y-%m-%d') }}">👉 30天</a> ·
+        <a href="/rank?start={{ recent_90_days|dt_format('%Y-%m-%d') }}">👉 90天</a> ·
+        <a href="/rank?start={{ recent_365_days|dt_format('%Y-%m-%d') }}">👉 365天</a>
         <br>
         <a href="/rank">🤘 全部</a> ·
         <a href="/">🤞 精选</a>
         <br>
-        <input type="date" id="start" value="{{ start.strftime('%Y-%m-%d') }}"> - <input type="date" id="end" value="{{ end.strftime('%Y-%m-%d') }}">
+        <input type="date" id="start" value="{{ start|dt_format('%Y-%m-%d') }}"> - <input type="date" id="end" value="{{ end|dt_format('%Y-%m-%d') }}">
     </h3>
     <script>
         document.querySelectorAll('input[type="date"]').forEach((el) => {
@@ -37,21 +37,21 @@
 
     <div class="pc-wrapper">
         <div>
-            <h3 class="subtitle">精选主题</h3>
+            <h3 class="subtitle">主题排行</h3>
             <div class="wrapper">
                 {% for i in topics %}
                 <a class='topic' href="https://v2ex.com/t/{{ i['id'] }}" target="_blank">
                     <img class='avatar' src="{{ i['avatar'] }}">
                     <div>
                         <p class="name">{{ i['name'] }}</p>
-                        <p class="info">{{ i['author']}} · {{ i['date']|localtime }} · {{ i['score'] }}</p>
+                        <p class="info">{{ i['author']}} · {{ i['date']|localtime|dt_format }} · {{ i['score'] }}</p>
                     </div>
                 </a>
                 {% endfor %}
             </div>
         </div>
         <div>
-            <h3 class="subtitle">精选回复</h3>
+            <h3 class="subtitle">回复排行</h3>
             <div class="wrapper">
                 {% for i in replys %}
                 <a class='topic' href="https://v2ex.com/t/{{ i['topicId'] }}?p={{ i['topicPage'] }}#r_{{ i['id'] }}"
@@ -59,7 +59,7 @@
                     <img class='avatar' src="{{ i['avatar'] }}">
                     <div class='content'>
                         <p class="name">{{ i['content']|remove_tag_a|safe }}</p>
-                        <p class="info">{{ i['author']}} · {{ i['date']|localtime }} · {{ i['thank'] }}</p>
+                        <p class="info">{{ i['author']}} · {{ i['date']|localtime|dt_format }} · {{ i['thank'] }}</p>
                     </div>
                 </a>
                 {% endfor %}
