@@ -1,15 +1,29 @@
+html,
 body {
     margin: 0;
     font-family: "Helvetica Neue", "Luxi Sans", "DejaVu Sans", Tahoma, "Hiragino Sans GB", "Microsoft Yahei", sans-serif;
-    cursor: default;
-    text-align: left;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    user-select: none;
     color: #778087;
-    width: 100%;
-    height: 100%;
+    width: 100vw;
+    height: 100vh;
     background-color: #eee;
+    background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+    background-size: 400% 400%;
+    animation: gradient 12s ease infinite;
+    overflow: auto;
+}
+
+@keyframes gradient {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
 }
 
 a {
@@ -27,15 +41,14 @@ a {
 .subtitle {
     font-weight: 300;
     text-align: center;
-    text-shadow: 1px 1px 1px #ccc;
+    color: #fff;
 }
 
 .wrapper {
-    width: 580px;
+    width: 520px;
     max-width: 96vw;
     border-radius: 3px;
     background: #f9f9f9;
-    box-shadow: 3px 3px 10px #ccc;
     margin: 10px auto 60px;
 }
 
@@ -51,14 +64,15 @@ a {
     border-radius: 3px;
 }
 
-.topic .content .name{
-    max-height: 30vh;
-    overflow: auto;
+.topic .content .name {
+    max-height: 3em;
     transition: max-height .3s;
+    word-break: break-all;
+    overflow: auto;
 }
 
-.topic:hover .content .name{
-    max-height: 80vh;
+.topic:hover .content .name {
+    max-height: 100vh;
 }
 
 .topic .content img {
@@ -80,6 +94,7 @@ a {
     font-size: 14px;
     color: #bbb;
     box-sizing: border-box;
+    opacity: .6;
 }
 
 .beian {
@@ -91,6 +106,7 @@ a {
     color: #bbb;
     transform: scale(0.6);
     border-bottom: none;
+    opacity: .6;
 }
 
 
@@ -144,4 +160,17 @@ a {
     background: #eee;
     border-radius: 3px;
     cursor: pointer;
+}
+
+@media (min-width: 1200px) {
+    .pc-wrapper {
+        text-align: center;
+    }
+
+    .pc-wrapper>div {
+        margin: 0 30px;
+        display: inline-block;
+        vertical-align: top;
+        text-align: left;
+    }
 }

@@ -200,7 +200,6 @@ async def generate_weekly(saturday):
 
     content = '🙋‍♂️ vDaily 每周日早 9:00 为您统计本周内的热门主题和高赞回复  \n\n'
     content += '🛠️ 推荐使用站内流行的浏览器扩展: [V2EX Plus](https://chrome.google.com/webstore/detail/v2ex-plus/daeclijmnojoemooblcbfeeceopnkolo)  \n'
-    content += '⚙️ 到这里选择您喜欢的 V 站主题样式: [V2EX 样式商城](https://vdaily.huguotao.com/store)  \n'
     content += '***\n'
     content += '### 🎉 热门主题\n'
     for i in topics:
@@ -227,6 +226,8 @@ async def generate_weekly(saturday):
     content += '***\n'
     content += f'🔗 回顾上一期周报: [{lastWeekly["title"]}](/t/{lastWeekly["id"]})  \n'
     content += '🌐 查看更多优质主题及回复: [V2EX 精选](https://vdaily.huguotao.com)  \n'
+    content += '🥇 主题及回复排行榜: [V2EX 排行](https://vdaily.huguotao.com/rank)  \n'
+    content += '⚙️ 到这里选择您喜欢的 V 站主题样式: [V2EX 样式商城](https://vdaily.huguotao.com/store)  \n'
     content += '📰 RSS 订阅: [Atom](https://vdaily.huguotao.com/weekly/atom.xml)  \n'
     content += '✉️ 欢迎任何交流及反馈: [sciooga@gmail.com](mailto:sciooga@gmail.com)  \n'
     content += '\n周末愉快，下周再见👋'

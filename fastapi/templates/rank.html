@@ -8,14 +8,28 @@
         content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no">
     <meta name="referrer" content="always">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="description" content="vDaily - V2EX 精选">
+    <meta name="description" content="vDaily - V2EX 排行">
     <link href="/static/index.css" rel="stylesheet">
-    <title>vDaily - V2EX 精选</title>
+    <title>vDaily - V2EX 排行</title>
 </head>
 
 <body>
-    <h1 class="title">vDaily - V2EX 精选</h1>
-    <h3 class="subtitle">精选近 7 天和历史 3 天的热门主题及回复<br>更多 <a href="/rank">👉 全站排行榜</a></h3>
+    <h1 class="title">vDaily - V2EX 排行</h1>
+    <h3 class="subtitle">
+        按时间对主题及回复进行排行<br>
+        <a href="/rank?start={{ recent_30_days.strftime('%Y-%m-%d') }}">👉 30天</a> ·
+        <a href="/rank?start={{ recent_90_days.strftime('%Y-%m-%d') }}">👉 90天</a> ·
+        <a href="/rank?start={{ recent_365_days.strftime('%Y-%m-%d') }}">👉 365天</a> ·
+        <a href="/">🤞 返回精选</a><br>
+        <input type="date" id="start" value="{{ start.strftime('%Y-%m-%d') }}"> - <input type="date" id="end" value="{{ end.strftime('%Y-%m-%d') }}">
+    </h3>
+    <script>
+        document.querySelectorAll('input[type="date"]').forEach((el) => {
+            el.addEventListener('change', (e) => {
+                location.href = `/rank?start=${start.value}&end=${end.value}`
+            })
+        })
+    </script>
 
     <div class="pc-wrapper">
         <div>
@@ -48,20 +62,7 @@
             </div>
         </div>
     </div>
-    <div class="status">
-        <a href="https://vdaily.huguotao.com/redoc" target="_blank">API 文档</a> ·
-        <a href="https://vdaily.huguotao.com/nginx_status" target="_blank">Nginx 状态</a> ·
-        <a href="https://vdaily.huguotao.com/report.html" target="_blank">请求统计</a> ·
-        <a href="https://vdaily.huguotao.com/logs.html" target="_blank">日志</a><br>
-        最新主题 ID：{{ latest_topic_id }} ·
-        新主题未更新：{{ topic_recent_total }} ·
-        超两周未更新：{{ topic_recent_2w_total }}<br>
-        任务总数：{{ task_total }} ·
-        未分配：{{ task_not_distribute_total }} ·
-        未完成：{{ task_not_complete_total }} ·
-        已分配未完成：{{ task_distribute_but_not_complete_total }} ·
-        错误：{{ error_total }}
-    </div>
+    <div class="status">主题得分 = (点击数 + 回复数 * 10 + 收藏数 * 30 + 感谢数 * 100 + 投票数 * 300) * (1+ 点赞回复数/总回复数)</div>
     <a class='beian' href='http://www.beian.miit.gov.cn/'>桂ICP备15001906号-2</a>
 </body>
 

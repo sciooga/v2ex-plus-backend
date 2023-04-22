@@ -4,6 +4,7 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from typing import List
+import markdown
 import datetime
 import asyncio
 import random
@@ -53,6 +54,7 @@ async def startup_event():
 
             
 @app.get("/", response_class=HTMLResponse)
+@cache(10)
 async def home(request: Request):
     '''各类主题列表及爬虫信息'''
 
@@ -116,6 +118,52 @@ async def home(request: Request):
 
     return templates.TemplateResponse("index.html", data)
 
+            
+@app.get("/rank", response_class=HTMLResponse)
+async def rank(request: Request, start: str = None, end: str = None):
+    '''排行榜'''
+
+    now = localtime(datetime.datetime.now())
+    recent_30_days = now - datetime.timedelta(days=30)
+    recent_90_days = now - datetime.timedelta(days=90)
+    recent_365_days = now - datetime.timedelta(days=365)
+    try:
+        start = localtime(datetime.datetime.strptime(start, '%Y-%m-%d'))
+    except:
+        start = localtime(datetime.datetime(2010,4,25))
+    try:
+        end = localtime(datetime.datetime.strptime(end, '%Y-%m-%d'))
+    except:
+        end = now
+
+
+    topics = await db.topic.find({
+        "date": {
+            "$gte": start,
+            "$lt": end
+        }
+    }).sort("score", -1).limit(100).to_list(100)
+    
+    replys = await db.reply.find({
+        "date": {
+            "$gte": start,
+            "$lt": end
+        }
+    }).sort("thank", -1).limit(100).to_list(100)
+
+    data = {
+        'request': request,
+        'start': start,
+        'end': end,
+        'recent_30_days': recent_30_days,
+        'recent_90_days': recent_90_days,
+        'recent_365_days': recent_365_days,
+        'topics': topics,
+        'replys': replys,
+    }
+
+    return templates.TemplateResponse("rank.html", data)
+
 
 @app.get("/weekly", response_class=HTMLResponse)
 async def weekly(request: Request):
@@ -135,7 +183,6 @@ async def weekly(request: Request):
 @app.get("/weekly/atom.xml", response_class=HTMLResponse)
 async def weekly_atom(request: Request):
 
-    import markdown
     today = localtime(datetime.datetime.now()).replace(hour=0, minute=0, second=0)
     weeklys = await db.weekly.find().sort('_id', -1).limit(10).to_list(10)
     for i in weeklys:

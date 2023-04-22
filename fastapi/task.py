@@ -161,7 +161,7 @@ async def delete_error():
         if await db.error.count_documents({'url': {'$regex': r'/t/%s\?p=%s' % (topic_id, page)}}) < 3:
             await new_task(topic_id, page, rekey)
         else:
-            await send_msg_to_tg('主题需要人工处理错误', 'https://v2ex.com/t/%s?p=%s' % (topic_id, page))
+            await send_msg_to_tg('主题需要人工处理错误 https://v2ex.com/t/%s?p=%s' % (topic_id, page))
 
 
 @bg_task(60*60*12)
