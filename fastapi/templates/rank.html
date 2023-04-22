@@ -16,11 +16,15 @@
 <body>
     <h1 class="title">vDaily - V2EX 排行</h1>
     <h3 class="subtitle">
-        按时间对主题及回复进行排行<br>
+        按时间对主题及回复进行排行
+        <br>
         <a href="/rank?start={{ recent_30_days.strftime('%Y-%m-%d') }}">👉 30天</a> ·
         <a href="/rank?start={{ recent_90_days.strftime('%Y-%m-%d') }}">👉 90天</a> ·
-        <a href="/rank?start={{ recent_365_days.strftime('%Y-%m-%d') }}">👉 365天</a> ·
-        <a href="/">🤞 返回精选</a><br>
+        <a href="/rank?start={{ recent_365_days.strftime('%Y-%m-%d') }}">👉 365天</a>
+        <br>
+        <a href="/rank">🤘 全部</a> ·
+        <a href="/">🤞 精选</a>
+        <br>
         <input type="date" id="start" value="{{ start.strftime('%Y-%m-%d') }}"> - <input type="date" id="end" value="{{ end.strftime('%Y-%m-%d') }}">
     </h3>
     <script>
