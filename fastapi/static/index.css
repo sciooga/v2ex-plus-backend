@@ -48,20 +48,25 @@ a {
     width: 520px;
     max-width: 96vw;
     border-radius: 3px;
-    background: #f9f9f9;
     margin: 10px auto 60px;
+    overflow: hidden;
 }
 
 .topic {
     display: flex;
     padding: 12px;
+    background: #f9f9f9;
+    opacity: 0;
+    transition: all .5s;
     border-bottom: 1px dashed #eee;
 }
 
 .avatar {
     width: 48px;
+    min-width: 48px;
     height: 48px;
     border-radius: 3px;
+    background: #eee;
 }
 
 .topic .content .name {

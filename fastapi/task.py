@@ -102,7 +102,7 @@ async def delete_task():
     })
 
 
-@bg_task(60)
+@bg_task(600)
 async def delete_error():
     '''定时任务: 清理错误'''
     print('清理错误')
@@ -164,9 +164,10 @@ async def delete_error():
             await send_msg_to_tg('主题需要人工处理错误 https://v2ex.com/t/%s?p=%s' % (topic_id, page))
 
 
-@bg_task(60*60*12)
+# @bg_task(60*60*12)
 async def a2_task():
     # 半天检查一次 A2 是否过期
+    # 现在该任务暂不执行，因为无法绕过 cf 自动发帖，功能暂停
     print('检查 A2 是否过期')
     A2 = (await db.info.find_one())['A2']
     cookies = {'A2': A2}
@@ -179,9 +180,10 @@ async def a2_task():
             await send_msg_to_tg('A2 过期，请协助: https://vdaily.huguotao.com/a2')
 
 
-@bg_task(30)
+# @bg_task(30)
 async def weekly_task():
     # 每周日早上 9:00 自动发布周报
+    # 现在该任务暂时不执行，替换为发布内部周报
     today = localtime(datetime.datetime.now())
     if today.weekday() != 6 or today.hour != 9 or today.minute > 5:
         print('没到发送周报的时间', today)
@@ -227,3 +229,30 @@ async def weekly_task():
         'date': datetime.datetime.now()
     })
     print(f'发布成功 https://v2ex.com/t/{topic_id}')
+
+
+@bg_task(30)
+async def weekly_predigest_task():
+    # 每周日早上 9:00 自动发布周报（内部版）
+    today = localtime(datetime.datetime.now())
+    if today.weekday() != 6 or today.hour != 9 or today.minute > 5:
+        print('没到发送周报的时间', today)
+        return
+
+    saturday = today.replace(hour=0, minute=0, second=0) - datetime.timedelta(days=(today.weekday() + 2))
+    title, content = await generate_weekly(saturday)
+
+    weekly = await db.weekly.find_one({'title': title})
+    if weekly:
+        print('周报已存在无需重新发送')
+        return
+    
+    print('开始发布周报')
+    
+    await db.weekly.insert_one({
+        'title': title,
+        'content': content,
+        'id': 934841, # 写死之前的周报
+        'date': datetime.datetime.now()
+    })
+    print(f'发布成功')

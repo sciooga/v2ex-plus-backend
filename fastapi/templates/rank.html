@@ -41,7 +41,7 @@
             <div class="wrapper">
                 {% for i in topics %}
                 <a class='topic' href="https://v2ex.com/t/{{ i['id'] }}" target="_blank">
-                    <img class='avatar' src="{{ i['avatar'] }}">
+                    <img class='avatar' src="{{ i['avatar'] }}" loading="lazy">
                     <div>
                         <p class="name">{{ i['name'] }}</p>
                         <p class="info">{{ i['author']}} · {{ i['date']|localtime|dt_format }} · {{ i['score'] }}</p>
@@ -56,7 +56,7 @@
                 {% for i in replys %}
                 <a class='topic' href="https://v2ex.com/t/{{ i['topicId'] }}?p={{ i['topicPage'] }}#r_{{ i['id'] }}"
                     target="_blank">
-                    <img class='avatar' src="{{ i['avatar'] }}">
+                    <img class='avatar' src="{{ i['avatar'] }}" loading="lazy">
                     <div class='content'>
                         <p class="name">{{ i['content']|remove_tag_a|safe }}</p>
                         <p class="info">{{ i['author']}} · {{ i['date']|localtime|dt_format }} · {{ i['thank'] }}</p>
@@ -66,6 +66,13 @@
             </div>
         </div>
     </div>
+    <script>
+        document.querySelectorAll('.pc-wrapper>div').forEach((el, i) => {
+            el.querySelectorAll('.topic').forEach((el, idx) => {
+                setTimeout(() => { el.style.opacity = 1 }, 80 * (idx+i*3))
+            })
+        })
+    </script>
     <div class="status">主题得分 = (点击数 + 回复数 * 10 + 收藏数 * 30 + 感谢数 * 100 + 投票数 * 300) * (1+ 点赞回复数/总回复数)</div>
     <a class='beian' href='http://www.beian.miit.gov.cn/'>桂ICP备15001906号-2</a>
 </body>

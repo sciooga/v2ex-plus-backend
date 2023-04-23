@@ -18,7 +18,7 @@
     <h3 class="subtitle">
         精选近 7 天和历史 3 天的热门主题及回复
         <br>
-        更多 <a href="/rank">👉 全站排行榜</a>
+        <a href="/rank">👉 排行榜</a> · <a href="/weekly">👉 周报</a>
     </h3>
 
     <div class="pc-wrapper">
@@ -27,7 +27,7 @@
             <div class="wrapper">
                 {% for i in topics %}
                 <a class='topic' href="https://v2ex.com/t/{{ i['id'] }}" target="_blank">
-                    <img class='avatar' src="{{ i['avatar'] }}">
+                    <img class='avatar' src="{{ i['avatar'] }}" loading="lazy">
                     <div>
                         <p class="name">{{ i['name'] }}</p>
                         <p class="info">{{ i['author']}} · {{ i['date']|localtime|dt_format }} · {{ i['score'] }}</p>
@@ -42,7 +42,7 @@
                 {% for i in replys %}
                 <a class='topic' href="https://v2ex.com/t/{{ i['topicId'] }}?p={{ i['topicPage'] }}#r_{{ i['id'] }}"
                     target="_blank">
-                    <img class='avatar' src="{{ i['avatar'] }}">
+                    <img class='avatar' src="{{ i['avatar'] }}" loading="lazy">
                     <div class='content'>
                         <p class="name">{{ i['content']|remove_tag_a|safe }}</p>
                         <p class="info">{{ i['author']}} · {{ i['date']|localtime|dt_format }} · {{ i['thank'] }}</p>
@@ -52,6 +52,13 @@
             </div>
         </div>
     </div>
+    <script>
+        document.querySelectorAll('.pc-wrapper>div').forEach((el, i) => {
+            el.querySelectorAll('.topic').forEach((el, idx) => {
+                setTimeout(() => { el.style.opacity = 1 }, 80 * (idx+i*3))
+            })
+        })
+    </script>
     <div class="status">
         <a href="https://vdaily.huguotao.com/redoc" target="_blank">API 文档</a> ·
         <a href="https://vdaily.huguotao.com/nginx_status" target="_blank">Nginx 状态</a> ·

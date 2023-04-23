@@ -202,13 +202,13 @@ async def generate_weekly(saturday):
         "date": {"$gte": saturday, "$lt": friday}
     }).sort("thank", -1).limit(30).to_list(30)
 
-    content = '🙋‍♂️ vDaily 每周日早 9:00 为您统计本周内的热门主题和高赞回复  \n\n'
+    content = '🙋‍♂️ vDaily 每周日为您统计本周内的热门主题和高赞回复  \n\n'
     content += '🛠️ 推荐使用站内流行的浏览器扩展: [V2EX Plus](https://chrome.google.com/webstore/detail/v2ex-plus/daeclijmnojoemooblcbfeeceopnkolo)  \n'
     content += '***\n'
     content += '### 🎉 热门主题\n'
     for i in topics:
         info = f'{i["author"]} · {i["node"]} · {localtime(i["date"]):%Y-%m-%d}'
-        content += f'> [{i["score"]: >6} ➰ **{i["name"]}**  \n&emsp;&emsp;&emsp;&emsp;&emsp;&ensp;{info}](/t/{i["id"]})  \n\n'
+        content += f'> [{i["score"]: >6} ➰ **{i["name"]}**  \n&emsp;&emsp;&emsp;&emsp;&emsp;&ensp;{info}](https://v2ex.com/t/{i["id"]})  \n\n'
         
 
     replys = await db.reply.find({
@@ -219,7 +219,7 @@ async def generate_weekly(saturday):
     content += '### 💕 高赞回复\n'
 
     for i in replys:
-        url = f'/t/{i["topicId"]}?p={i["topicPage"]}#r_{i["id"]}'
+        url = f'https://v2ex.com/t/{i["topicId"]}?p={i["topicPage"]}#r_{i["id"]}'
         reply = remove_tag_a(i['content']).replace("<br>", " ") # 移除 <a> <br>
         reply = re.sub(r'(.+imgur.+)(\.)', r'\1s.', reply) # 调整 imgur 大小
         info = f'{i["author"]} · {localtime(i["date"]):%Y-%m-%d}'

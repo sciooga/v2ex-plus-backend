@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-cmn-Has-ZN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="referrer" content="always">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="description" content="vDaily - V2EX 精选">
+    <link href="/static/index.css" rel="stylesheet">
+    <title>vDaily - V2EX 周报</title>
+</head>
+
+<body>
+    <h1 class="title">vDaily - V2EX 周报</h1>
+    <h3 class="subtitle">
+        按周统计本周内的热门主题和高赞回复
+        <br>
+        更多 <a href="/">👉 精选</a>
+    </h3>
+
+    <div class="pc-wrapper">
+        <div>
+            <h3 class="subtitle">往期周报</h3>
+            <div class="wrapper">
+                {% for i in weeklys %}
+                <a class='topic' href="/weekly/detail/{{ i['_id'] }}" target="_blank">
+                    <img class='avatar' src="https://cdn.v2ex.com/avatar/b25b/12bc/122247_normal.png?" loading="lazy">
+                    <div>
+                        <p class="name">{{ i['title'] }}</p>
+                        <p class="info">vPlus · {{ i['date']|localtime|dt_format }}</p>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <script>
+        document.querySelectorAll('.pc-wrapper>div').forEach((el, i) => {
+            el.querySelectorAll('.topic').forEach((el, idx) => {
+                setTimeout(() => { el.style.opacity = 1 }, 80 * (idx+i*3))
+            })
+        })
+    </script>
+    <a class='beian' href='http://www.beian.miit.gov.cn/'>桂ICP备15001906号-2</a>
+</body>
+
+</html>

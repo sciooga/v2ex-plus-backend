@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from bson import ObjectId
 from typing import List
 import markdown
 import datetime
@@ -100,7 +101,6 @@ async def home(request: Request):
         'topic_recent_2w_total': await db.topic.count_documents({
             'spiderTime': {'$lte': datetime.datetime.now() - datetime.timedelta(days=14)}
         }),
-        # 'cursor': (await db.info.find_one())['cursor'],
         'latest_topic_id': (await db.topic.find_one(sort=[('id', -1)]))['id'],
         # 任务总数
         'task_total': await db.task.count_documents({}),
@@ -166,7 +166,7 @@ async def rank(request: Request, start: str = None, end: str = None):
     return templates.TemplateResponse("rank.html", data)
 
 
-@app.get("/weekly", response_class=HTMLResponse)
+@app.get("/weekly/md", response_class=HTMLResponse)
 async def weekly(request: Request):
 
     today = localtime(datetime.datetime.now()).replace(hour=0, minute=0, second=0)
@@ -178,7 +178,35 @@ async def weekly(request: Request):
         'request': request,
         'markdown': f'### { title }  \n' + content
     }
-    return templates.TemplateResponse("weekly.html", data)
+    return templates.TemplateResponse("weeklyMarkdown.html", data)
+
+
+@app.get("/weekly", response_class=HTMLResponse)
+async def weekly(request: Request):
+
+    weeklys = await db.weekly.find().sort('_id', -1).limit(10).to_list(10)
+    
+    data = {
+        'request': request,
+        'weeklys': weeklys
+    }
+    return templates.TemplateResponse("weeklyList.html", data)
+
+
+@app.get("/weekly/detail/{weekly_id}", response_class=HTMLResponse)
+async def weekly(weekly_id: str, request: Request):
+
+    weekly = await db.weekly.find_one({'_id': ObjectId(weekly_id)})
+    content = markdown.markdown(weekly['content'])
+    user_agent = request.headers.get("User-Agent")
+    if "Mobile" in user_agent:
+        content = content.replace('&emsp;', '')
+    data = {
+        'request': request,
+        'weekly': weekly,
+        'content': content
+    }
+    return templates.TemplateResponse("weeklyDetail.html", data)
 
 
 @app.get("/weekly/atom.xml", response_class=HTMLResponse)
@@ -187,7 +215,7 @@ async def weekly_atom(request: Request):
     today = localtime(datetime.datetime.now()).replace(hour=0, minute=0, second=0)
     weeklys = await db.weekly.find().sort('_id', -1).limit(10).to_list(10)
     for i in weeklys:
-        i['content'] = markdown.markdown(i['content'].replace('(/t/', '(https://v2ex.com/t/'))
+        i['content'] = markdown.markdown(i['content'])
     data = {
         'request': request,
         'updated': datetime.datetime.today().strftime('%Y-%m-%dT%H:%M:%SZ'),
