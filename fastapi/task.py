@@ -158,7 +158,7 @@ async def delete_error():
         topic = await db.topic.find_one({'id': topic_id})
         if topic and i['time'] <= topic['spiderTime']:
             await db.error.delete_one({'_id': i['_id']})
-        if await db.error.count_documents({'url': {'$regex': r'/t/%s\?p=%s' % (topic_id, page)}}) < 3:
+        if await db.error.count_documents({'url': {'$regex': r'/t/%s\?p=%s' % (topic_id, page)}}) < 10:
             await new_task(topic_id, page, rekey)
         else:
             await send_msg_to_tg('主题需要人工处理错误 https://v2ex.com/t/%s?p=%s' % (topic_id, page))
@@ -216,9 +216,11 @@ async def weekly_task():
             'once': once
         }
         async with session.post(url, data=payload) as resp:
-            result = re.search(r'/t/(\d+)#reply0', await resp.text())
+            html = await resp.text()
+            result = re.search(r'/t/(\d+)#reply0', html)
             if not result:
                 print('发布失败')
+                print(html)
                 return
             topic_id = result.group(1)
     

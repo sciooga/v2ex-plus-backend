@@ -120,6 +120,7 @@ a {
 .style {
     padding: 12px;
     border-bottom: 1px dashed #eee;
+    background: #fff;
 }
 
 .style img {

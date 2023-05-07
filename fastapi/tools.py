@@ -228,7 +228,7 @@ async def generate_weekly(saturday):
     lastWeekly = await db.weekly.find_one({}, sort=[('_id', -1)])
 
     content += '***\n'
-    content += f'🔗 回顾上一期周报: [{lastWeekly["title"]}](/t/{lastWeekly["id"]})  \n'
+    content += f'🔗 回顾上一期周报: [{lastWeekly["title"]}](https://v2ex.com/t/{lastWeekly["id"]})  \n'
     content += '🌐 查看更多优质主题及回复: [V2EX 精选](https://vdaily.huguotao.com)  \n'
     content += '🥇 主题及回复排行榜: [V2EX 排行](https://vdaily.huguotao.com/rank)  \n'
     content += '⚙️ 到这里选择您喜欢的 V 站主题样式: [V2EX 样式商城](https://vdaily.huguotao.com/store)  \n'
